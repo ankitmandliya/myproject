@@ -40,3 +40,13 @@ Route::get('/dashboard', function () {
 })->name('dashboard')->middleware(AuthenticateUser::class);
 
 Route::get('/logout', [UserController::class, 'logout'])->name('logout');
+
+Route::get('/page-not-found', function () {
+    return view('Loginscreen.pageNotFound');
+})->name('pageNotFound');
+
+Route::fallback(function () {
+    return redirect()->route('pageNotFound');
+});
+
+
