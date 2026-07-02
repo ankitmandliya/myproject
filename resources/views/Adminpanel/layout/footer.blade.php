@@ -154,6 +154,11 @@ $("#lineChart3").sparkline([105, 103, 123, 100, 95, 105, 115], {
     fillColor: "rgba(255, 165, 52, .14)",
 });
  </script>
+ <!-- <script>
+    $(document).ready(function() {
+        $("#basic-datatables").DataTable({});
+    });
+ </script> -->
  </body>
 
  </html>

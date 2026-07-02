@@ -30,20 +30,6 @@
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a href="widgets.html">
-                        <i class="fas fa-desktop"></i>
-                        <p>Widgets</p>
-                        <span class="badge badge-success">4</span>
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a href="../../documentation/index.html">
-                        <i class="fas fa-file"></i>
-                        <p>Documentation</p>
-                        <span class="badge badge-secondary">1</span>
-                    </a>
-                </li>
-                <li class="nav-item">
                     <a data-bs-toggle="collapse" href="#submenu">
                         <i class="fas fa-bars"></i>
                         <p>Master Records</p>
@@ -73,14 +59,19 @@
                             </li>
                             <li>
                                 <a data-bs-toggle="collapse" href="#subnav2">
-                                    <span class="sub-item">Level 1</span>
+                                    <span class="sub-item">Leaves & Holidays</span>
                                     <span class="caret"></span>
                                 </a>
                                 <div class="collapse" id="subnav2">
                                     <ul class="nav nav-collapse subnav">
                                         <li>
+                                            <a href="{{ route('leavepolicy') }}">
+                                                <span class="sub-item">Leave Types</span>
+                                            </a>
+                                        </li>
+                                        <li>
                                             <a href="#">
-                                                <span class="sub-item">Level 2</span>
+                                                <span class="sub-item">Holidays</span>
                                             </a>
                                         </li>
                                     </ul>
@@ -94,6 +85,21 @@
                         </ul>
                     </div>
                 </li>
+                <li class="nav-item">
+                    <a href="widgets.html">
+                        <i class="fas fa-desktop"></i>
+                        <p>Widgets</p>
+                        <span class="badge badge-success">4</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="../../documentation/index.html">
+                        <i class="fas fa-file"></i>
+                        <p>Documentation</p>
+                        <span class="badge badge-secondary">1</span>
+                    </a>
+                </li>
+                
             </ul>
         </div>
     </div>

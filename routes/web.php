@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\UserController;
 use App\Http\Middleware\AuthenticateUser;
+use App\Http\Controllers\LeaveTypeController;
 
 /*
 |--------------------------------------------------------------------------
@@ -49,4 +50,21 @@ Route::fallback(function () {
     return redirect()->route('pageNotFound');
 });
 
+// HRMS Leaves Routes
+Route::get('/leavepolicy', [LeaveTypeController::class, 'index'])->name('leavepolicy')
+->middleware(AuthenticateUser::class);
 
+Route::get('/leave-types/create', [LeaveTypeController::class, 'create'])->name('leave-types.create')
+->middleware(AuthenticateUser::class);
+
+Route::post('/leave-types', [LeaveTypeController::class, 'store'])->name('leave-types.store')
+->middleware(AuthenticateUser::class);
+
+Route::get('/leave-types/{leaveType}/edit', [LeaveTypeController::class, 'edit'])->name('leave-types.edit')
+->middleware(AuthenticateUser::class);
+
+Route::put('/leave-types/{leaveType}', [LeaveTypeController::class, 'update'])->name('leave-types.update')
+->middleware(AuthenticateUser::class);
+
+Route::delete('/leave-types/{leaveType}', [LeaveTypeController::class, 'destroy'])->name('leave-types.destroy')
+->middleware(AuthenticateUser::class);
