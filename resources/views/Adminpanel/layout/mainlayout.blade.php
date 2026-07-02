@@ -1,4 +1,5 @@
 @include('Adminpanel.layout.header')
 @include('Adminpanel.layout.sidebar')
+@include('Adminpanel.layout.navbar')
 @yield('content')
 @include('Adminpanel.layout.footer')
