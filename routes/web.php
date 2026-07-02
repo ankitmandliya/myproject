@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\UserController;
 
 /*
 |--------------------------------------------------------------------------
@@ -28,3 +29,5 @@ Route::get('/forgot-password', function () {
 Route::get('/verification-code', function () {
     return view('Loginscreen.verificationcode');
 })->name('verification.code');
+
+Route::POST('/register-user', [UserController::class, 'store'])->name('register-user');
