@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\UserController;
+use App\Http\Middleware\AuthenticateUser;
 
 /*
 |--------------------------------------------------------------------------
@@ -31,3 +32,11 @@ Route::get('/verification-code', function () {
 })->name('verification.code');
 
 Route::POST('/register-user', [UserController::class, 'store'])->name('register-user');
+
+Route::POST('/login-user', [UserController::class, 'login'])->name('UserLogin');
+
+Route::get('/dashboard', function () {
+    return view('adminpanel.dashboard');
+})->name('dashboard')->middleware(AuthenticateUser::class);
+
+Route::get('/logout', [UserController::class, 'logout'])->name('logout');
