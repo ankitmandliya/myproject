@@ -6,17 +6,28 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use App\Models\Scopes\OrderByScope; //importing the orderByScope class to use it as a global scope in the Holiday model
 
-class LeaveType extends Model
+class Holiday extends Model
 {
     use HasFactory;
     
-    protected $table = 'leave_types';
-    protected $guarded = [];
-    public  $timestamps = false; // Disable timestamps if not needed
+    public $timestamps = false;
+    protected $table = 'holidays';
+    protected $fillable = [
+        'name',
+        'from_date',
+        'to_date',
+        'status',
+    ];
+
+    public function scopeActive($query, $statusValue) //local scope to filter holidays based on status
+    {
+        return $query->where('status', $statusValue); //where clause to filter holidays based on status
+    }
 
     //adding global scope to order holidays by id in descending order
     protected static function booted(): void
     {
         static::addGlobalScope(new OrderByScope); //adding global scope to order holidays by id in descending order
     }
+
 }

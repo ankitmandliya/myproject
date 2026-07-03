@@ -37,7 +37,7 @@
                     </a>
                     <div class="collapse" id="submenu">
                         <ul class="nav nav-collapse">
-                            <li>
+                            <!-- <li>
                                 <a data-bs-toggle="collapse" href="#subnav1">
                                     <span class="sub-item">Level 1</span>
                                     <span class="caret"></span>
@@ -56,7 +56,7 @@
                                         </li>
                                     </ul>
                                 </div>
-                            </li>
+                            </li> -->
                             <li>
                                 <a data-bs-toggle="collapse" href="#subnav2">
                                     <span class="sub-item">Leaves & Holidays</span>
@@ -66,12 +66,12 @@
                                     <ul class="nav nav-collapse subnav">
                                         <li>
                                             <a href="{{ route('leavepolicy') }}">
-                                                <span class="sub-item">Leave Types</span>
+                                                <span class="sub-item">Leave Management</span>
                                             </a>
                                         </li>
                                         <li>
-                                            <a href="#">
-                                                <span class="sub-item">Holidays</span>
+                                            <a href="{{ route('holidays.index') }}">
+                                                <span class="sub-item">Holiday Management</span>
                                             </a>
                                         </li>
                                     </ul>

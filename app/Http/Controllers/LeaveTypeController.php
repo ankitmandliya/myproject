@@ -13,8 +13,7 @@ class LeaveTypeController extends Controller
     public function index()
     {
         $leaveTypes = LeaveType::where('status', 1)
-        ->orderby('leave_name', 'asc')
-        ->paginate(4);
+        ->paginate(10);
         return view('Adminpanel.HRMS.Leaves.leavepolicy', compact('leaveTypes'));
     }
 
