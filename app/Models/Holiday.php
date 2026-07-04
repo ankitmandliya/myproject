@@ -19,6 +19,12 @@ class Holiday extends Model
         'status',
     ];
 
+    protected $casts = [
+        'from_date' => 'date',
+        'to_date' => 'date',
+        'status' => 'integer',
+    ];
+
     public function scopeActive($query, $statusValue) //local scope to filter holidays based on status
     {
         return $query->where('status', $statusValue); //where clause to filter holidays based on status

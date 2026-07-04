@@ -1,10 +1,25 @@
+@php
+    $isLeaveMenuActive = request()->routeIs('leavepolicy')
+        || request()->routeIs('leave-types.*')
+        || request()->routeIs('holidays.*')
+        || request()->routeIs('hrms.leave-apply.*');
+
+    $isHrmsMenuActive = request()->routeIs('hrms.dashboard')
+        || request()->routeIs('hrms.users.*')
+        || request()->routeIs('hrms.attendance.*')
+        || request()->routeIs('hrms.salary.*')
+        || request()->routeIs('hrms.roles.*')
+        || request()->routeIs('hrms.company-setting.*')
+        || $isLeaveMenuActive;
+@endphp
+
 <!-- Sidebar -->
 <div class="sidebar" data-background-color="dark">
     <div class="sidebar-logo">
         <!-- Logo Header -->
         <div class="logo-header" data-background-color="dark">
-            <a href="index.html" class="logo">
-                <img src="{{asset('assets/img/kaiadmin/logo_light.svg')}}" alt="navbar brand" class="navbar-brand" height="20" />
+            <a href="{{ route('dashboard') }}" class="logo">
+                <img src="{{ asset('assets/img/kaiadmin/logo_light.svg') }}" alt="navbar brand" class="navbar-brand" height="20" />
             </a>
             <div class="nav-toggle">
                 <button class="btn btn-toggle toggle-sidebar">
@@ -23,83 +38,79 @@
     <div class="sidebar-wrapper scrollbar scrollbar-inner">
         <div class="sidebar-content">
             <ul class="nav nav-secondary">
-                <li class="nav-item">
-                    <a href=" {{ route('dashboard') }}">
+                <li class="nav-item {{ request()->routeIs('dashboard') ? 'active' : '' }}">
+                    <a href="{{ route('dashboard') }}">
                         <i class="fas fa-home"></i>
                         <p>Dashboard</p>
                     </a>
                 </li>
-                <li class="nav-item">
-                    <a data-bs-toggle="collapse" href="#submenu">
-                        <i class="fas fa-bars"></i>
-                        <p>Master Records</p>
+
+                <li class="nav-item {{ $isHrmsMenuActive ? 'active submenu' : '' }}">
+                    <a data-bs-toggle="collapse" href="#hrmsMenu" class="{{ $isHrmsMenuActive ? '' : 'collapsed' }}" aria-expanded="{{ $isHrmsMenuActive ? 'true' : 'false' }}">
+                        <i class="fas fa-users-cog"></i>
+                        <p>HRMS</p>
                         <span class="caret"></span>
                     </a>
-                    <div class="collapse" id="submenu">
+                    <div class="collapse {{ $isHrmsMenuActive ? 'show' : '' }}" id="hrmsMenu">
                         <ul class="nav nav-collapse">
-                            <!-- <li>
-                                <a data-bs-toggle="collapse" href="#subnav1">
-                                    <span class="sub-item">Level 1</span>
+                            <li class="{{ request()->routeIs('hrms.dashboard') ? 'active' : '' }}">
+                                <a href="{{ route('hrms.dashboard') }}">
+                                    <span class="sub-item">Dashboard</span>
+                                </a>
+                            </li>
+                            <li class="{{ request()->routeIs('hrms.users.*') ? 'active' : '' }}">
+                                <a href="{{ route('hrms.users.index') }}">
+                                    <span class="sub-item">Employees</span>
+                                </a>
+                            </li>
+                            <li class="{{ request()->routeIs('hrms.attendance.*') ? 'active' : '' }}">
+                                <a href="{{ route('hrms.attendance.index') }}">
+                                    <span class="sub-item">Attendance</span>
+                                </a>
+                            </li>
+                            <li class="{{ $isLeaveMenuActive ? 'active submenu' : '' }}">
+                                <a data-bs-toggle="collapse" href="#hrmsLeaveMenu" class="{{ $isLeaveMenuActive ? '' : 'collapsed' }}" aria-expanded="{{ $isLeaveMenuActive ? 'true' : 'false' }}">
+                                    <span class="sub-item">Leave Management</span>
                                     <span class="caret"></span>
                                 </a>
-                                <div class="collapse" id="subnav1">
+                                <div class="collapse {{ $isLeaveMenuActive ? 'show' : '' }}" id="hrmsLeaveMenu">
                                     <ul class="nav nav-collapse subnav">
-                                        <li>
-                                            <a href="#">
-                                                <span class="sub-item">Level 2</span>
-                                            </a>
-                                        </li>
-                                        <li>
-                                            <a href="#">
-                                                <span class="sub-item">Level 2</span>
-                                            </a>
-                                        </li>
-                                    </ul>
-                                </div>
-                            </li> -->
-                            <li>
-                                <a data-bs-toggle="collapse" href="#subnav2">
-                                    <span class="sub-item">Leaves & Holidays</span>
-                                    <span class="caret"></span>
-                                </a>
-                                <div class="collapse" id="subnav2">
-                                    <ul class="nav nav-collapse subnav">
-                                        <li>
+                                        <li class="{{ request()->routeIs('leavepolicy') || request()->routeIs('leave-types.*') ? 'active' : '' }}">
                                             <a href="{{ route('leavepolicy') }}">
-                                                <span class="sub-item">Leave Management</span>
+                                                <span class="sub-item">Leave Types</span>
                                             </a>
                                         </li>
-                                        <li>
+                                        <li class="{{ request()->routeIs('holidays.*') ? 'active' : '' }}">
                                             <a href="{{ route('holidays.index') }}">
-                                                <span class="sub-item">Holiday Management</span>
+                                                <span class="sub-item">Holidays</span>
+                                            </a>
+                                        </li>
+                                        <li class="{{ request()->routeIs('hrms.leave-apply.*') ? 'active' : '' }}">
+                                            <a href="{{ route('hrms.leave-apply.index') }}">
+                                                <span class="sub-item">Leave Apply</span>
                                             </a>
                                         </li>
                                     </ul>
                                 </div>
                             </li>
-                            <li>
-                                <a href="#">
-                                    <span class="sub-item">Level 1</span>
+                            <li class="{{ request()->routeIs('hrms.salary.*') ? 'active' : '' }}">
+                                <a href="{{ route('hrms.salary.index') }}">
+                                    <span class="sub-item">Payroll</span>
+                                </a>
+                            </li>
+                            <li class="{{ request()->routeIs('hrms.roles.*') ? 'active' : '' }}">
+                                <a href="{{ route('hrms.roles.index') }}">
+                                    <span class="sub-item">Roles & Permissions</span>
+                                </a>
+                            </li>
+                            <li class="{{ request()->routeIs('hrms.company-setting.*') ? 'active' : '' }}">
+                                <a href="{{ route('hrms.company-setting.index') }}">
+                                    <span class="sub-item">Company Settings</span>
                                 </a>
                             </li>
                         </ul>
                     </div>
                 </li>
-                <li class="nav-item">
-                    <a href="widgets.html">
-                        <i class="fas fa-desktop"></i>
-                        <p>Widgets</p>
-                        <span class="badge badge-success">4</span>
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a href="../../documentation/index.html">
-                        <i class="fas fa-file"></i>
-                        <p>Documentation</p>
-                        <span class="badge badge-secondary">1</span>
-                    </a>
-                </li>
-                
             </ul>
         </div>
     </div>

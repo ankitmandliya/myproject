@@ -5,6 +5,13 @@ use App\Http\Controllers\UserController;
 use App\Http\Middleware\AuthenticateUser;
 use App\Http\Controllers\LeaveTypeController;
 use App\Http\Controllers\HolidayController;
+use App\Http\Controllers\HRMS\AttendanceController as HrmsAttendanceController;
+use App\Http\Controllers\HRMS\DashboardController as HrmsDashboardController;
+use App\Http\Controllers\HRMS\CompanySettingController as HrmsCompanySettingController;
+use App\Http\Controllers\HRMS\LeaveApplyController as HrmsLeaveApplyController;
+use App\Http\Controllers\HRMS\RoleController as HrmsRoleController;
+use App\Http\Controllers\HRMS\SalaryController as HrmsSalaryController;
+use App\Http\Controllers\HRMS\UserController as HrmsUserController;
 
 /*
 |--------------------------------------------------------------------------
@@ -18,7 +25,7 @@ use App\Http\Controllers\HolidayController;
 */
 
 Route::get('/', function () {
-    return view('Loginscreen.signup');
+    return view('LoginScreen.signup');
 })->name('signup');
 
 Route::get('/login', function () {
@@ -47,10 +54,6 @@ Route::get('/page-not-found', function () {
     return view('Loginscreen.pageNotFound');
 })->name('pageNotFound');
 
-Route::fallback(function () {
-    return redirect()->route('pageNotFound');
-});
-
 // HRMS Leaves Routes
 Route::get('/leavepolicy', [LeaveTypeController::class, 'index'])->name('leavepolicy')
 ->middleware(AuthenticateUser::class);
@@ -71,7 +74,6 @@ Route::delete('/leave-types/{leaveType}', [LeaveTypeController::class, 'destroy'
 ->middleware(AuthenticateUser::class);
 
 // HRMS Holidays Routes
-
 Route::get('/holidays', [HolidayController::class, 'index'])->name('holidays.index')
 ->middleware(AuthenticateUser::class); //to open view holiday page
 
@@ -89,3 +91,28 @@ Route::put('/holidays/{holiday}', [HolidayController::class, 'update'])->name('h
 
 Route::delete('/holidays/{holiday}', [HolidayController::class, 'destroy'])->name('holidays.destroy')
 ->middleware(AuthenticateUser::class); // to delete holiday data from database
+
+// HRMS Module Routes
+Route::prefix('hrms')
+    ->name('hrms.')
+    ->middleware(['auth'])
+    ->group(function () {
+        Route::get('dashboard', [HrmsDashboardController::class, 'index'])->name('dashboard');
+
+        Route::resource('users', HrmsUserController::class);
+        Route::resource('attendance', HrmsAttendanceController::class);
+        Route::resource('leave-apply', HrmsLeaveApplyController::class);
+        Route::resource('salary', HrmsSalaryController::class);
+        Route::resource('roles', HrmsRoleController::class);
+
+        Route::get('company-setting', [HrmsCompanySettingController::class, 'index'])
+            ->name('company-setting.index');
+        Route::put('company-setting', [HrmsCompanySettingController::class, 'updateSettings'])
+            ->name('company-setting.update');
+    });
+
+Route::fallback(function () {
+    return redirect()->route('pageNotFound');
+});
+
+
