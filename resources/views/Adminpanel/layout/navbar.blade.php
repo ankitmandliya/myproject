@@ -247,6 +247,9 @@
                         </div>
                     </li>
 
+                    @auth
+                        <li id="attendance-widget-container" data-widget-url="{{ route('hrms.attendance.widget') }}" class="nav-item"><span class="nav-link"><span class="spinner-border spinner-border-sm text-primary" aria-label="Loading attendance"></span></span></li>
+                    @endauth
                     <li class="nav-item topbar-user dropdown hidden-caret">
                         <a class="dropdown-toggle profile-pic" data-bs-toggle="dropdown" href="#" aria-expanded="false">
                             <div class="avatar-sm">

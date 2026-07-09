@@ -100,7 +100,9 @@ Route::prefix('hrms')
         Route::get('dashboard', [HrmsDashboardController::class, 'index'])->name('dashboard');
 
         Route::resource('users', HrmsUserController::class);
-        Route::get('my-attendance', [HrmsAttendanceController::class, 'myAttendance'])->name('my-attendance');
+        Route::get('attendance/widget', [HrmsAttendanceController::class, 'widget'])->name('attendance.widget');
+        Route::post('attendance/check-in', [HrmsAttendanceController::class, 'widgetCheckIn'])->name('attendance.check-in');
+        Route::post('attendance/check-out', [HrmsAttendanceController::class, 'widgetCheckOut'])->name('attendance.check-out');        Route::get('my-attendance', [HrmsAttendanceController::class, 'myAttendance'])->name('my-attendance');
         Route::get('attendance/employee/{employeeId}', [HrmsAttendanceController::class, 'employeeAttendance'])->name('attendance.employee');
         Route::get('attendance/history/{employeeId}', [HrmsAttendanceController::class, 'history'])->name('attendance.history');
         Route::get('attendance/calendar/{employeeId}', [HrmsAttendanceController::class, 'calendar'])->name('attendance.calendar');

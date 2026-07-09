@@ -248,3 +248,33 @@ Legacy Modules: Holiday and LeaveType were implemented before the standardized H
 - Authorization implemented: The authenticated ID is used for My Attendance, and authorization occurs before employee or attendance data is loaded.
 - Browser verification completed: CLI route, Blade compilation, role/data isolation inspection, empty database behavior, responsive markup, and named-route wiring passed. No Employee-role account currently exists in the database, so an interactive Employee login could not be exercised.
 - Verification commands passed: `optimize:clear`, `optimize`, `view:cache`, HRMS `route:list`, `about`, full app PHP lint, and scoped diff integrity checks passed.
+
+- Task completed: Implemented the HRMS Attendance marking header UI from `mdfiles/10E_hrms_attendance_marking_ui.md`.
+- Attendance Header Widget completed: Added an authenticated responsive dropdown beside the profile, loaded through AttendanceController with one prepared AttendanceService response.
+- Check In UI completed: Self-only POST action, service-owned eligibility, loading spinner, disabled duplicate submission, and existing success/error flash paths are integrated.
+- Check Out UI completed: Self-only POST action displays current check-in time and transitions to the completed state after service checkout.
+- Attendance confirmation modal completed: Added an accessible Bootstrap modal with the required warning, cancel, and confirmed checkout controls.
+- Company Settings integration completed: Office start/end, late threshold, half-day threshold, and weekly off values come dynamically through CompanySettingService inside AttendanceService.
+- Holiday integration completed: Existing HolidayService active lookup now supplies company holiday name/date and disables marking through the AttendanceService response.
+- Weekly Off integration completed: AttendanceService uses CompanySettingService for both widget state and direct check-in protection.
+- Dynamic office timings, late threshold, and half-day threshold integrated: Blade renders only prepared formatted values.
+- Flash messages integrated: Widget actions return through the existing layout flash component.
+- Responsive header completed: Desktop label, compact icon, and dropdown content reuse existing Bootstrap/KaiAdmin utilities.
+- Browser verification completed: CLI rendering confirmed Check In, office hours, late/half-day policy, CSRF, confirmation markup, and all three attendance states. Rollback-only state verification left attendance records unchanged (`0` before and after). Interactive browser clicking was unavailable from CLI.
+- Verification commands passed: `optimize:clear`, `optimize`, `view:cache`, Attendance `route:list`, `about`, full app PHP lint, rendered widget assertions, rollback state transitions, and scoped diff checks passed.
+
+- Task completed: Refined the HRMS Attendance UI from `mdfiles/10E1_hrms_attendance_ui_refinement.md`.
+- Calendar refined: The employee calendar now displays aligned full weeks, daily status, check-in, check-out, working hours, holiday names, empty attendance messaging, and responsive horizontal scrolling.
+- Real Carbon calendar implemented: AttendanceService uses `startOfMonth`, `endOfMonth`, Monday `startOfWeek`, and Sunday `endOfWeek`; weekday headings are generated from the prepared Carbon grid.
+- Previous/Next month navigation added: Calendar supports retained `YYYY-MM` query selection, previous/next controls, and a month picker; History accepts the same month format.
+- Today highlight added: The service exposes `is_today`, and Blade renders a Bootstrap TODAY badge and highlighted cell.
+- Holiday integration refined: Calendar holidays come only from HolidayService and take priority over configured weekly offs and attendance.
+- Multi-day holiday support completed: Live verification marked every date from 10–14 July 2026 for the Hariyali Amavasya range; the single-day Independence Day holiday marked only 4 July.
+- Weekly Off integration completed: Weekly-off dates come dynamically from CompanySettingService; the holiday on Sunday 12 July correctly overrides Weekly Off.
+- Header attendance toggle completed: The navbar widget now exposes OFF, ON, and disabled Completed switch states with separate Bootstrap confirmation modals for check-in and checkout.
+- Attendance completed state refined: Completed state remains checked and disabled, while vanilla JavaScript prevents visual toggle changes until confirmation and preserves duplicate-submit loading protection.
+- Employee calendar integrated: My Attendance remains the employee default, while HR/Admin attendance list and employee calendar routes remain intact.
+- Responsive calendar improved: Existing Bootstrap/KaiAdmin cards, responsive table scrolling, compact navigation, and month selection are reused without a new stylesheet.
+- Attendance legend added: Present, Late, Half Day, Leave, Absent, Holiday, and Weekly Off use Bootstrap badges below the calendar.
+- Browser verification completed: CLI authenticated render checks verified July 2026 alignment (`2026-07-01` under Wednesday), grid boundaries (`2026-06-29`–`2026-08-02`), navigation links, legend, dynamic holidays, weekly offs, and toggle confirmation/completed markup. Interactive browser clicking was unavailable from CLI.
+- Verification commands passed: `optimize:clear`, `optimize`, `view:cache`, full `route:list`, `about`, targeted controller/service lint, full app PHP lint, authenticated calendar rendering, and live holiday/weekly-off data checks passed.

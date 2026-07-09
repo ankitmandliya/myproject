@@ -14,6 +14,7 @@ use Carbon\Carbon;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use RuntimeException;
 
 /** Controller for HRMS attendance operations. */
 class AttendanceController extends Controller
@@ -131,8 +132,12 @@ class AttendanceController extends Controller
     public function history(Request $request, int $employeeId): View
     {
         $employee = $this->authorizedEmployee($employeeId);
-        $month = (int) $request->input('month', Carbon::now()->month);
-        $year = (int) $request->input('year', Carbon::now()->year);
+        $selectedMonth = (string) $request->input('month', Carbon::now()->format('Y-m'));
+        $historyMonth = preg_match('/^\d{4}-(0[1-9]|1[0-2])$/', $selectedMonth) === 1
+            ? Carbon::createFromFormat('Y-m', $selectedMonth)->startOfMonth()
+            : Carbon::now()->startOfMonth();
+        $month = (int) $historyMonth->month;
+        $year = (int) $historyMonth->year;
         $attendance = $this->attendanceService->getMonthlyAttendance($employeeId, $month, $year);
         $currentMonth = ['month' => $month, 'year' => $year];
         $monthLabel = Carbon::create($year, $month, 1)->format('F Y');
@@ -146,24 +151,29 @@ class AttendanceController extends Controller
     public function calendar(Request $request, int $employeeId): View
     {
         $employee = $this->authorizedEmployee($employeeId);
-        $month = (int) $request->input('month', Carbon::now()->month);
-        $year = (int) $request->input('year', Carbon::now()->year);
+        $selectedMonth = (string) $request->input('month', Carbon::now()->format('Y-m'));
+        $calendarMonth = preg_match('/^\d{4}-(0[1-9]|1[0-2])$/', $selectedMonth) === 1
+            ? Carbon::createFromFormat('Y-m', $selectedMonth)->startOfMonth()
+            : Carbon::now()->startOfMonth();
+        $month = (int) $calendarMonth->month;
+        $year = (int) $calendarMonth->year;
         $calendarData = $this->attendanceService->getMonthlyCalendar($month, $year, $employeeId);
         $attendanceSummary = $this->attendanceService->getUserAttendanceSummary($employeeId, $month, $year);
-        $hasAttendance = collect($calendarData['weeks'])->flatten(1)
-            ->contains(fn (array $day): bool => $day['records_count'] > 0);
-        $isDemoCalendar = ! $hasAttendance;
+        $isDemoCalendar = ! $calendarData['has_attendance'] && app()->environment(['local', 'testing']);
 
         if ($isDemoCalendar) {
             $demoStatuses = [
-                'Present', 'Present', 'Late', 'Present', 'Half Day', 'Present', 'Holiday',
-                'Present', 'Leave', 'Present', 'Absent', 'Present', 'Present', 'Holiday',
-                'Present', 'Late', 'Present', 'Half Day', 'Present', 'Present', 'Holiday',
-                'Present', 'Present', 'Leave', 'Present', 'Late', 'Present', 'Holiday',
+                'Present', 'Present', 'Late', 'Present', 'Half Day', 'Present', 'Absent',
+                'Present', 'Leave', 'Present', 'Absent', 'Present', 'Present', 'Late',
+                'Present', 'Late', 'Present', 'Half Day', 'Present', 'Present', 'Leave',
+                'Present', 'Present', 'Leave', 'Present', 'Late', 'Present', 'Absent',
             ];
             foreach ($calendarData['weeks'] as &$week) {
                 foreach ($week as &$day) {
-                    $day['statuses'] = [$demoStatuses[($day['day'] - 1) % count($demoStatuses)]];
+                    if ($day['is_current_month'] && $day['status'] === 'No Attendance') {
+                        $day['status'] = $demoStatuses[($day['day'] - 1) % count($demoStatuses)];
+                        $day['statuses'] = [$day['status']];
+                    }
                 }
                 unset($day);
             }
@@ -175,6 +185,37 @@ class AttendanceController extends Controller
         ));
     }
 
+    /** Render the authenticated user's prepared header attendance widget. */
+    public function widget(): View
+    {
+        $attendanceWidget = $this->attendanceService->getTodayAttendanceWidget((int) auth()->id());
+
+        return view('Adminpanel.HRMS.Attendance._partials.header-widget', compact('attendanceWidget'));
+    }
+
+    /** Check in the authenticated user. */
+    public function widgetCheckIn(): RedirectResponse
+    {
+        try {
+            $this->attendanceService->markCheckIn((int) auth()->id(), []);
+        } catch (RuntimeException $exception) {
+            return back()->with('error', $exception->getMessage());
+        }
+
+        return back()->with('success', 'Check-in marked successfully.');
+    }
+
+    /** Check out the authenticated user. */
+    public function widgetCheckOut(): RedirectResponse
+    {
+        try {
+            $this->attendanceService->markCheckOut((int) auth()->id());
+        } catch (RuntimeException $exception) {
+            return back()->with('error', $exception->getMessage());
+        }
+
+        return back()->with('success', 'Check-out marked successfully.');
+    }
     /** Display the authenticated employee's own attendance calendar. */
     public function myAttendance(Request $request): View
     {

@@ -159,6 +159,31 @@ $("#lineChart3").sparkline([105, 103, 123, 100, 95, 105, 115], {
         $("#basic-datatables").DataTable({});
     });
  </script> -->
- </body>
+ <script>
+ document.addEventListener('DOMContentLoaded', function () {
+     const container = document.getElementById('attendance-widget-container');
+     if (container) {
+         fetch(container.dataset.widgetUrl, {headers: {'X-Requested-With': 'XMLHttpRequest'}})
+             .then(function (response) { if (!response.ok) throw new Error('Attendance widget failed'); return response.text(); })
+             .then(function (html) { container.insertAdjacentHTML('beforebegin', html); container.remove(); })
+             .catch(function () { container.remove(); });
+     }
+ });
+ document.addEventListener('click', function (event) {
+     const toggle = event.target.closest('[data-attendance-toggle]');
+     if (!toggle) return;
+     event.preventDefault();
+     const modal = document.querySelector(toggle.dataset.confirmTarget);
+     if (modal) bootstrap.Modal.getOrCreateInstance(modal).show();
+ }); document.addEventListener('submit', function (event) {
+     const form = event.target.closest('[data-attendance-form]');
+     if (!form) return;
+     const button = form.querySelector('button[type="submit"]');
+     if (!button || button.disabled) { event.preventDefault(); return; }
+     button.disabled = true;
+     const spinner = button.querySelector('.spinner-border');
+     if (spinner) spinner.classList.remove('d-none');
+ });
+ </script> </body>
 
  </html>

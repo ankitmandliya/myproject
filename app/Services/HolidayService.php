@@ -35,5 +35,8 @@ class HolidayService implements HolidayServiceInterface
     public function delete(int $id): mixed { throw new BadMethodCallException('Not implemented.'); }
 
     /** Get active holidays. */
-    public function active(): mixed { throw new BadMethodCallException('Not implemented.'); }
+    public function active(): mixed
+    {
+        return $this->holiday->active(1)->get();
+    }
 }

@@ -26,6 +26,9 @@ interface AttendanceServiceInterface
     /** Get prepared monthly calendar data. */
     public function getMonthlyCalendar(int $month, int $year, ?int $userId = null): array;
 
+    /** Get the complete authenticated-user header attendance view model. */
+    public function getTodayAttendanceWidget(int $userId): array;
+
     /** Get an attendance record by ID. */
     public function getById(int $id): Attendance;
 

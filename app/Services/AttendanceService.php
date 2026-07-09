@@ -6,6 +6,7 @@ namespace App\Services;
 
 use App\Contracts\AttendanceServiceInterface;
 use App\Contracts\CompanySettingServiceInterface;
+use App\Contracts\HolidayServiceInterface;
 use App\Contracts\UserServiceInterface;
 use App\Models\Attendance;
 use App\Models\User;
@@ -25,7 +26,8 @@ class AttendanceService implements AttendanceServiceInterface
     public function __construct(
         protected Attendance $attendance,
         protected UserServiceInterface $userService,
-        protected CompanySettingServiceInterface $companySettingService
+        protected CompanySettingServiceInterface $companySettingService,
+        protected HolidayServiceInterface $holidayService
     ) {
     }
 
@@ -121,32 +123,47 @@ class AttendanceService implements AttendanceServiceInterface
         ];
     }
 
-    /** Get prepared monthly calendar data. */
+    /** Get a prepared, Monday-aligned monthly attendance calendar. */
     public function getMonthlyCalendar(int $month, int $year, ?int $userId = null): array
     {
         $this->validateMonthYear($month, $year);
-
+        $monthStart = Carbon::create($year, $month, 1)->startOfMonth();
+        $monthEnd = $monthStart->copy()->endOfMonth();
+        $gridStart = $monthStart->copy()->startOfWeek(Carbon::MONDAY);
+        $gridEnd = $monthEnd->copy()->endOfWeek(Carbon::SUNDAY);
         $records = ($userId === null
             ? $this->getAttendanceReport($month, $year)
-            : $this->getMonthlyAttendance($userId, $month, $year))->groupBy(
-            fn (Attendance $attendance): string => $attendance->attendance_date->toDateString()
-        );
-        $start = Carbon::create($year, $month, 1)->startOfMonth();
-        $end = $start->copy()->endOfMonth();
+            : $this->getMonthlyAttendance($userId, $month, $year))->keyBy(
+                fn (Attendance $attendance): string => $attendance->attendance_date->toDateString()
+            );
+        $holidays = $this->holidayService->active();
         $weeks = [];
         $week = [];
 
-        for ($date = $start->copy(); $date->lte($end); $date->addDay()) {
-            $dayRecords = $records->get($date->toDateString(), collect());
-            $statuses = $dayRecords->map(fn (Attendance $attendance): string => $this->displayStatus($attendance))->unique()->values()->all();
+        for ($date = $gridStart->copy(); $date->lte($gridEnd); $date->addDay()) {
+            $record = $records->get($date->toDateString());
+            $holiday = $holidays->first(
+                fn ($item): bool => $date->betweenIncluded($item->from_date, $item->to_date)
+            );
+            $isWeeklyOff = $holiday === null && $this->companySettingService->isWeeklyOff($date);
+            $status = $holiday !== null
+                ? 'Holiday'
+                : ($isWeeklyOff ? 'Weekly Off' : ($record instanceof Attendance ? $this->displayStatus($record) : 'No Attendance'));
 
             $week[] = [
                 'date' => $date->toDateString(),
                 'day' => $date->day,
                 'weekday' => $date->format('D'),
-                'is_weekend' => $date->isWeekend(),
-                'statuses' => $statuses,
-                'records_count' => $dayRecords->count(),
+                'is_current_month' => $date->month === $month,
+                'is_today' => $date->isToday(),
+                'status' => $status,
+                'statuses' => [$status],
+                'holiday_name' => $holiday?->name,
+                'is_weekend' => $isWeeklyOff,
+                'check_in' => $record?->check_in,
+                'check_out' => $record?->check_out,
+                'working_hours' => $record?->working_hours,
+                'records_count' => $record instanceof Attendance ? 1 : 0,
             ];
 
             if (count($week) === 7) {
@@ -155,15 +172,71 @@ class AttendanceService implements AttendanceServiceInterface
             }
         }
 
-        if ($week !== []) {
-            $weeks[] = $week;
-        }
-
         return [
             'month' => $month,
             'year' => $year,
-            'label' => $start->format('F Y'),
+            'label' => $monthStart->format('F Y'),
+            'selected_month' => $monthStart->format('Y-m'),
+            'previous_month' => $monthStart->copy()->subMonth()->format('Y-m'),
+            'next_month' => $monthStart->copy()->addMonth()->format('Y-m'),
+            'weekdays' => collect(range(0, 6))->map(
+                fn (int $offset): string => $gridStart->copy()->addDays($offset)->format('D')
+            )->all(),
+            'has_attendance' => $records->isNotEmpty(),
             'weeks' => $weeks,
+        ];
+    }
+    /** Get the complete authenticated-user header attendance view model. */
+    public function getTodayAttendanceWidget(int $userId): array
+    {
+        $employee = $this->userService->getEmployeeProfile($userId);
+        $today = Carbon::today();
+        $now = Carbon::now();
+        $attendance = $this->attendance->with(['user.userDetail', 'user.roles'])
+            ->where('user_id', $userId)
+            ->whereDate('attendance_date', $today->toDateString())
+            ->first();
+        $holiday = $this->holidayService->active()->first(
+            fn ($item): bool => $today->betweenIncluded($item->from_date, $item->to_date)
+        );
+        $isHoliday = $holiday !== null;
+        $isWeeklyOff = $this->companySettingService->isWeeklyOff($today);
+        $officeStart = $this->companySettingService->getOfficeStartTime();
+        $officeEnd = $this->companySettingService->getOfficeEndTime();
+        $lateThreshold = $this->companySettingService->getLateThreshold();
+        $halfDayThreshold = $this->companySettingService->getHalfDayThreshold();
+        $completed = $attendance?->check_out !== null;
+        $attendanceStatus = ($attendance?->half_day ?? false)
+            ? 'Half Day'
+            : ((int) ($attendance?->late_minutes ?? 0) > 0 ? 'Late' : ($attendance?->status ?? 'Attendance Pending'));
+        $canCheckIn = ! $isHoliday && ! $isWeeklyOff && $attendance === null;
+        $canCheckOut = ! $isHoliday && ! $isWeeklyOff && $attendance?->check_in !== null && ! $completed;
+        $status = $isHoliday ? 'Holiday' : ($isWeeklyOff ? 'Weekly Off' : ($completed ? 'Attendance Completed' : ($attendanceStatus)));
+        $detail = $employee->userDetail;
+
+        return [
+            'status' => $status,
+            'statusBadge' => $isHoliday || $isWeeklyOff ? 'secondary' : ($completed ? 'success' : ($attendance ? 'warning' : 'secondary')),
+            'canCheckIn' => $canCheckIn,
+            'canCheckOut' => $canCheckOut,
+            'attendanceCompleted' => $completed,
+            'checkInTime' => $attendance?->check_in ? Carbon::parse($attendance->check_in)->format('h:i A') : null,
+            'checkOutTime' => $attendance?->check_out ? Carbon::parse($attendance->check_out)->format('h:i A') : null,
+            'officeStartTime' => Carbon::parse($officeStart)->format('h:i A'),
+            'officeEndTime' => Carbon::parse($officeEnd)->format('h:i A'),
+            'lateThreshold' => Carbon::parse($officeStart)->addMinutes($lateThreshold)->format('h:i A'),
+            'halfDayThreshold' => Carbon::parse($officeStart)->addMinutes($halfDayThreshold)->format('h:i A'),
+            'weeklyOff' => $this->companySettingService->getWeeklyOff(),
+            'isWeeklyOff' => $isWeeklyOff,
+            'isCompanyHoliday' => $isHoliday,
+            'holidayName' => $holiday?->name,
+            'holidayDate' => $holiday?->from_date?->format('d M Y'),
+            'officeOpen' => ! $isHoliday && ! $isWeeklyOff,
+            'todayDate' => $today->format('d M Y'),
+            'currentTime' => $now->format('h:i A'),
+            'employeeName' => trim(($detail?->first_name ?? '') . ' ' . ($detail?->last_name ?? '')) ?: $employee->name,
+            'employeeCode' => $detail?->emp_code,
+            'workingHours' => $attendance?->working_hours,
         ];
     }
     /** Get an attendance record by ID. */
@@ -176,8 +249,16 @@ class AttendanceService implements AttendanceServiceInterface
     public function markCheckIn(int $userId, array $data): Attendance
     {
         $this->validateActiveUser($userId);
-
         $today = Carbon::today();
+        $holiday = $this->holidayService->active()->first(
+            fn ($item): bool => $today->betweenIncluded($item->from_date, $item->to_date)
+        );
+        if ($holiday !== null) {
+            throw new RuntimeException('Attendance cannot be marked on a company holiday.');
+        }
+        if ($this->companySettingService->isWeeklyOff($today)) {
+            throw new RuntimeException('Attendance cannot be marked on a weekly off.');
+        }
 
         return DB::transaction(function () use ($userId, $data, $today): Attendance {
             if ($this->getAttendanceByDate($userId, $today) instanceof Attendance) {
@@ -208,7 +289,10 @@ class AttendanceService implements AttendanceServiceInterface
         $this->validateActiveUser($userId);
 
         return DB::transaction(function () use ($userId): Attendance {
-            $attendance = $this->getTodayAttendance($userId);
+            $attendance = $this->attendance->with(['user.userDetail', 'user.roles'])
+            ->where('user_id', $userId)
+            ->whereDate('attendance_date', $today->toDateString())
+            ->first();
 
             if (! $attendance instanceof Attendance) {
                 throw new RuntimeException("Today attendance was not found for user [{$userId}].");
