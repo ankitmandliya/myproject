@@ -17,6 +17,15 @@ interface AttendanceServiceInterface
     /** Get paginated attendance records. */
     public function paginate(int $perPage = 10): LengthAwarePaginator;
 
+    /** Get filtered paginated attendance records. */
+    public function getFilteredAttendance(array $filters = [], int $perPage = 10): LengthAwarePaginator;
+
+    /** Get today's attendance summary. */
+    public function getTodaySummary(): array;
+
+    /** Get prepared monthly calendar data. */
+    public function getMonthlyCalendar(int $month, int $year, ?int $userId = null): array;
+
     /** Get an attendance record by ID. */
     public function getById(int $id): Attendance;
 

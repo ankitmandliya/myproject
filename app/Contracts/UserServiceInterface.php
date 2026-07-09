@@ -31,6 +31,9 @@ interface UserServiceInterface
     /** Return paginated users latest first with profile and roles loaded. */
     public function getAllUsers(int $perPage = 10): LengthAwarePaginator;
 
+    /** Return filtered paginated users for employee listing. */
+    public function getFilteredUsers(array $filters = [], int $perPage = 10): LengthAwarePaginator;
+
     /** Return a complete employee profile by user ID. */
     public function getUserById(int $id): User;
 

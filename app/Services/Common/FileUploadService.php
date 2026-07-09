@@ -6,6 +6,7 @@ namespace App\Services\Common;
 
 use App\Contracts\Common\FileUploadServiceInterface;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use InvalidArgumentException;
@@ -44,6 +45,10 @@ class FileUploadService implements FileUploadServiceInterface
             return false;
         }
 
+        if ($disk === 'public_path') {
+            return File::delete(public_path($path));
+        }
+
         return Storage::disk($disk)->delete($path);
     }
 
@@ -53,6 +58,10 @@ class FileUploadService implements FileUploadServiceInterface
 
         if ($path === '') {
             return false;
+        }
+
+        if ($disk === 'public_path') {
+            return File::exists(public_path($path));
         }
 
         return Storage::disk($disk)->exists($path);
@@ -77,6 +86,19 @@ class FileUploadService implements FileUploadServiceInterface
 
         if ($directory === '') {
             throw new InvalidArgumentException('Upload directory is required.');
+        }
+
+        if ($disk === 'public_path') {
+            $destination = public_path($directory);
+
+            if (! File::isDirectory($destination)) {
+                File::makeDirectory($destination, 0755, true);
+            }
+
+            $filename = $this->generateUniqueFilename($file);
+            $file->move($destination, $filename);
+
+            return $directory.'/'.$filename;
         }
 
         return $file->storeAs($directory, $this->generateUniqueFilename($file), $disk);

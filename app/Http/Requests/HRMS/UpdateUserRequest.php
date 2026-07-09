@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\HRMS;
 
+use App\Models\UserDetail;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -27,8 +28,12 @@ class UpdateUserRequest extends FormRequest
      */
     public function rules(): array
     {
-        $userId = $this->route('user');
+        $userId = (int) $this->route('user');
         $userDetailId = $this->route('user_detail') ?? $this->route('userDetail');
+
+        if ($userDetailId === null && $userId > 0) {
+            $userDetailId = UserDetail::where('user_id', $userId)->value('id');
+        }
 
         return [
             'name' => ['sometimes', 'required', 'string', 'max:255'],
@@ -40,15 +45,16 @@ class UpdateUserRequest extends FormRequest
             'last_name' => ['nullable', 'string', 'max:100'],
             'gender' => ['nullable', Rule::in(['Male', 'Female', 'Other'])],
             'dob' => ['nullable', 'date'],
-            'joining_date' => ['nullable', 'date'],
+            'joining_date' => ['sometimes', 'required', 'date'],
             'department' => ['nullable', 'string', 'max:100'],
             'designation' => ['nullable', 'string', 'max:100'],
             'basic_salary' => ['nullable', 'numeric', 'min:0'],
             'address' => ['nullable', 'string'],
             'aadhaar' => ['nullable', 'string', 'max:20', Rule::unique('user_details', 'aadhaar')->ignore($userDetailId)],
             'pan' => ['nullable', 'string', 'max:20', Rule::unique('user_details', 'pan')->ignore($userDetailId)],
-            'profile_photo' => ['nullable', 'string', 'max:255'],
+            'profile_photo' => ['nullable', 'file', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
             'status' => ['nullable', 'boolean'],
+            'role_id' => ['sometimes', 'required', 'integer', 'exists:role_master,id'],
         ];
     }
 
@@ -63,6 +69,8 @@ class UpdateUserRequest extends FormRequest
             'email.unique' => 'This employee email is already registered.',
             'emp_code.unique' => 'This employee code is already in use.',
             'first_name.required' => 'Employee first name is required.',
+            'joining_date.required' => 'Employee joining date is required.',
+            'role_id.required' => 'Employee role is required.',
             'aadhaar.unique' => 'This Aadhaar number is already in use.',
             'pan.unique' => 'This PAN number is already in use.',
         ];

@@ -7,6 +7,7 @@
     $isHrmsMenuActive = request()->routeIs('hrms.dashboard')
         || request()->routeIs('hrms.users.*')
         || request()->routeIs('hrms.attendance.*')
+        || request()->routeIs('hrms.my-attendance')
         || request()->routeIs('hrms.salary.*')
         || request()->routeIs('hrms.roles.*')
         || request()->routeIs('hrms.company-setting.*')
@@ -64,8 +65,8 @@
                                 </a>
                             </li>
                             <li class="{{ request()->routeIs('hrms.attendance.*') ? 'active' : '' }}">
-                                <a href="{{ route('hrms.attendance.index') }}">
-                                    <span class="sub-item">Attendance</span>
+                                <a href="{{ auth()->user()->roles->pluck('role_name')->intersect(['Admin', 'HR'])->isNotEmpty() ? route('hrms.attendance.index') : route('hrms.my-attendance') }}">
+                                    <span class="sub-item">{{ auth()->user()->roles->pluck('role_name')->intersect(['Admin', 'HR'])->isNotEmpty() ? 'Attendance' : 'My Attendance' }}</span>
                                 </a>
                             </li>
                             <li class="{{ $isLeaveMenuActive ? 'active submenu' : '' }}">

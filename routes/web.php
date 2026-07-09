@@ -100,6 +100,10 @@ Route::prefix('hrms')
         Route::get('dashboard', [HrmsDashboardController::class, 'index'])->name('dashboard');
 
         Route::resource('users', HrmsUserController::class);
+        Route::get('my-attendance', [HrmsAttendanceController::class, 'myAttendance'])->name('my-attendance');
+        Route::get('attendance/employee/{employeeId}', [HrmsAttendanceController::class, 'employeeAttendance'])->name('attendance.employee');
+        Route::get('attendance/history/{employeeId}', [HrmsAttendanceController::class, 'history'])->name('attendance.history');
+        Route::get('attendance/calendar/{employeeId}', [HrmsAttendanceController::class, 'calendar'])->name('attendance.calendar');
         Route::resource('attendance', HrmsAttendanceController::class);
         Route::resource('leave-apply', HrmsLeaveApplyController::class);
         Route::resource('salary', HrmsSalaryController::class);

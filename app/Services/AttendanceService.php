@@ -38,6 +38,134 @@ class AttendanceService implements AttendanceServiceInterface
             ->paginate($perPage);
     }
 
+
+    /** Get filtered paginated attendance records. */
+    public function getFilteredAttendance(array $filters = [], int $perPage = 10): LengthAwarePaginator
+    {
+        $perPage = in_array($perPage, [10, 25, 50, 100], true) ? $perPage : 10;
+
+        $query = $this->attendance->with(['user.userDetail', 'user.roles']);
+
+        $name = trim((string) ($filters['name'] ?? ''));
+        if ($name !== '') {
+            $query->whereHas('user', function ($userQuery) use ($name): void {
+                $userQuery->where('name', 'like', "%{$name}%")
+                    ->orWhere('email', 'like', "%{$name}%")
+                    ->orWhereHas('userDetail', function ($detailQuery) use ($name): void {
+                        $detailQuery->where('first_name', 'like', "%{$name}%")
+                            ->orWhere('last_name', 'like', "%{$name}%");
+                    });
+            });
+        }
+
+        $employeeCode = trim((string) ($filters['emp_code'] ?? ''));
+        if ($employeeCode !== '') {
+            $query->whereHas('user.userDetail', fn ($detailQuery) => $detailQuery->where('emp_code', 'like', "%{$employeeCode}%"));
+        }
+
+        $department = trim((string) ($filters['department'] ?? ''));
+        if ($department !== '') {
+            $query->whereHas('user.userDetail', fn ($detailQuery) => $detailQuery->where('department', 'like', "%{$department}%"));
+        }
+
+        $designation = trim((string) ($filters['designation'] ?? ''));
+        if ($designation !== '') {
+            $query->whereHas('user.userDetail', fn ($detailQuery) => $detailQuery->where('designation', 'like', "%{$designation}%"));
+        }
+
+        $status = trim((string) ($filters['status'] ?? ''));
+        if ($status !== '') {
+            if ($status === 'Late') {
+                $query->where('late_minutes', '>', 0);
+            } elseif ($status === 'Half Day') {
+                $query->where('half_day', true);
+            } else {
+                $query->where('status', $status);
+            }
+        }
+
+        $fromDate = trim((string) ($filters['from_date'] ?? ''));
+        if ($fromDate !== '') {
+            $query->whereDate('attendance_date', '>=', $fromDate);
+        }
+
+        $toDate = trim((string) ($filters['to_date'] ?? ''));
+        if ($toDate !== '') {
+            $query->whereDate('attendance_date', '<=', $toDate);
+        }
+
+        return $query
+            ->latest('attendance_date')
+            ->latest('created_at')
+            ->paginate($perPage);
+    }
+
+    /** Get today's attendance summary. */
+    public function getTodaySummary(): array
+    {
+        $records = $this->attendance
+            ->with(['user.userDetail', 'user.roles'])
+            ->whereDate('attendance_date', Carbon::today()->toDateString())
+            ->get();
+
+        $activeEmployees = $this->userService->getActiveUsers()->count();
+        $inactiveEmployees = $this->userService->getInactiveUsers()->count();
+
+        return [
+            'total_employees' => $activeEmployees + $inactiveEmployees,
+            'present' => $records->where('status', 'Present')->count(),
+            'absent' => $records->where('status', 'Absent')->count(),
+            'late' => $records->filter(fn (Attendance $attendance): bool => (int) $attendance->late_minutes > 0)->count(),
+            'half_day' => $records->filter(fn (Attendance $attendance): bool => (bool) $attendance->half_day)->count(),
+            'leave' => $records->where('status', 'Leave')->count(),
+        ];
+    }
+
+    /** Get prepared monthly calendar data. */
+    public function getMonthlyCalendar(int $month, int $year, ?int $userId = null): array
+    {
+        $this->validateMonthYear($month, $year);
+
+        $records = ($userId === null
+            ? $this->getAttendanceReport($month, $year)
+            : $this->getMonthlyAttendance($userId, $month, $year))->groupBy(
+            fn (Attendance $attendance): string => $attendance->attendance_date->toDateString()
+        );
+        $start = Carbon::create($year, $month, 1)->startOfMonth();
+        $end = $start->copy()->endOfMonth();
+        $weeks = [];
+        $week = [];
+
+        for ($date = $start->copy(); $date->lte($end); $date->addDay()) {
+            $dayRecords = $records->get($date->toDateString(), collect());
+            $statuses = $dayRecords->map(fn (Attendance $attendance): string => $this->displayStatus($attendance))->unique()->values()->all();
+
+            $week[] = [
+                'date' => $date->toDateString(),
+                'day' => $date->day,
+                'weekday' => $date->format('D'),
+                'is_weekend' => $date->isWeekend(),
+                'statuses' => $statuses,
+                'records_count' => $dayRecords->count(),
+            ];
+
+            if (count($week) === 7) {
+                $weeks[] = $week;
+                $week = [];
+            }
+        }
+
+        if ($week !== []) {
+            $weeks[] = $week;
+        }
+
+        return [
+            'month' => $month,
+            'year' => $year,
+            'label' => $start->format('F Y'),
+            'weeks' => $weeks,
+        ];
+    }
     /** Get an attendance record by ID. */
     public function getById(int $id): Attendance
     {
@@ -303,6 +431,20 @@ class AttendanceService implements AttendanceServiceInterface
         });
     }
 
+
+    /** Resolve the display status used by attendance presentation. */
+    protected function displayStatus(Attendance $attendance): string
+    {
+        if ((bool) $attendance->half_day) {
+            return 'Half Day';
+        }
+
+        if ((int) $attendance->late_minutes > 0) {
+            return 'Late';
+        }
+
+        return (string) $attendance->status;
+    }
     /** Find attendance by ID. */
     protected function findAttendance(int $attendanceId): Attendance
     {

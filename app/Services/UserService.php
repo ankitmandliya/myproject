@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Contracts\Common\FileUploadServiceInterface;
 use App\Contracts\CompanySettingServiceInterface;
 use App\Contracts\RolePermissionServiceInterface;
 use App\Contracts\UserServiceInterface;
@@ -13,6 +14,7 @@ use App\Models\UserDetail;
 use App\Models\UserRole;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use InvalidArgumentException;
@@ -30,7 +32,8 @@ class UserService implements UserServiceInterface
         protected UserDetail $userDetail,
         protected RoleMaster $roleMaster,
         protected RolePermissionServiceInterface $rolePermissionService,
-        protected CompanySettingServiceInterface $companySettingService
+        protected CompanySettingServiceInterface $companySettingService,
+        protected FileUploadServiceInterface $fileUploadService
     ) {
     }
 
@@ -73,6 +76,59 @@ class UserService implements UserServiceInterface
             ->paginate($perPage);
     }
 
+    /** Return filtered paginated users for employee listing. */
+    public function getFilteredUsers(array $filters = [], int $perPage = 10): LengthAwarePaginator
+    {
+        $perPage = in_array($perPage, [10, 25, 50, 100], true) ? $perPage : 10;
+
+        $query = $this->user->with(['userDetail', 'roles']);
+
+        $name = trim((string) ($filters['name'] ?? ''));
+        if ($name !== '') {
+            $query->where(function ($query) use ($name): void {
+                $query->where('name', 'like', "%{$name}%")
+                    ->orWhere('email', 'like', "%{$name}%")
+                    ->orWhereHas('userDetail', function ($detailQuery) use ($name): void {
+                        $detailQuery->where('first_name', 'like', "%{$name}%")
+                            ->orWhere('last_name', 'like', "%{$name}%");
+                    });
+            });
+        }
+
+        $employeeCode = trim((string) ($filters['emp_code'] ?? ''));
+        if ($employeeCode !== '') {
+            $query->whereHas('userDetail', fn ($detailQuery) => $detailQuery->where('emp_code', 'like', "%{$employeeCode}%"));
+        }
+
+        $department = trim((string) ($filters['department'] ?? ''));
+        if ($department !== '') {
+            $query->whereHas('userDetail', fn ($detailQuery) => $detailQuery->where('department', 'like', "%{$department}%"));
+        }
+
+        $designation = trim((string) ($filters['designation'] ?? ''));
+        if ($designation !== '') {
+            $query->whereHas('userDetail', fn ($detailQuery) => $detailQuery->where('designation', 'like', "%{$designation}%"));
+        }
+
+        $role = trim((string) ($filters['role'] ?? ''));
+        if ($role !== '') {
+            $query->whereHas('roles', function ($roleQuery) use ($role): void {
+                if (ctype_digit($role)) {
+                    $roleQuery->where('role_master.id', (int) $role);
+
+                    return;
+                }
+
+                $roleQuery->where('role_name', $role);
+            });
+        }
+
+        if (array_key_exists('status', $filters) && $filters['status'] !== null && $filters['status'] !== '') {
+            $query->whereHas('userDetail', fn ($detailQuery) => $detailQuery->where('status', (bool) $filters['status']));
+        }
+
+        return $query->latest()->paginate($perPage)->withQueryString();
+    }
     /** Return a complete employee profile by user ID. */
     public function getUserById(int $id): User
     {
@@ -104,6 +160,8 @@ class UserService implements UserServiceInterface
             throw new RuntimeException('Employee code already exists.');
         }
 
+        $data = $this->prepareProfilePhotoUpload($data);
+
         return DB::transaction(function () use ($data): User {
             $user = $this->user->create($this->userPayload($data, true));
 
@@ -132,7 +190,11 @@ class UserService implements UserServiceInterface
             throw new RuntimeException('Employee code already exists.');
         }
 
-        return DB::transaction(function () use ($user, $data): User {
+        $oldProfilePhoto = (string) ($user->userDetail?->profile_photo ?? '');
+        $data = $this->prepareProfilePhotoUpload($data);
+        $newProfilePhoto = $data['profile_photo'] ?? null;
+
+        $updatedUser = DB::transaction(function () use ($user, $data): User {
             $userPayload = $this->userPayload($data, false);
 
             if ($userPayload !== []) {
@@ -154,6 +216,12 @@ class UserService implements UserServiceInterface
 
             return $this->getUserById($user->id);
         });
+
+        if (is_string($newProfilePhoto)) {
+            $this->deleteReplacedProfilePhoto($oldProfilePhoto, $newProfilePhoto);
+        }
+
+        return $updatedUser;
     }
 
     /** Delete an employee user, profile, and role assignments. */
@@ -341,6 +409,32 @@ class UserService implements UserServiceInterface
     public function getEmployeeProfile(int $userId): User
     {
         return $this->getUserById($userId);
+    }
+
+    /** Upload an employee profile photo into the public upload directory. */
+    protected function prepareProfilePhotoUpload(array $data): array
+    {
+        if (($data['profile_photo'] ?? null) instanceof UploadedFile) {
+            $data['profile_photo'] = $this->fileUploadService->uploadImage(
+                $data['profile_photo'],
+                'uploads/employees',
+                'public_path'
+            );
+        }
+
+        return $data;
+    }
+
+    /** Delete a replaced employee photo when it belongs to the public employee upload directory. */
+    protected function deleteReplacedProfilePhoto(string $oldPath, string $newPath): void
+    {
+        $oldPath = trim($oldPath);
+
+        if ($oldPath === '' || $oldPath === $newPath || ! str_starts_with($oldPath, 'uploads/employees/')) {
+            return;
+        }
+
+        $this->fileUploadService->deleteFile($oldPath, 'public_path');
     }
 
     /** Update active status on the employee profile. */
