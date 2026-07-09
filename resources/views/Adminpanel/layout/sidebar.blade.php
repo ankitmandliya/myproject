@@ -68,7 +68,11 @@
                                 <a href="{{ auth()->user()->roles->pluck('role_name')->intersect(['Admin', 'HR'])->isNotEmpty() ? route('hrms.attendance.index') : route('hrms.my-attendance') }}">
                                     <span class="sub-item">{{ auth()->user()->roles->pluck('role_name')->intersect(['Admin', 'HR'])->isNotEmpty() ? 'Attendance' : 'My Attendance' }}</span>
                                 </a>
-                            </li>
+                            </li>                            @if(auth()->user()->roles->pluck('role_name')->intersect(['Admin', 'HR'])->isNotEmpty())
+                                <li class="{{ request()->routeIs('hrms.attendance.reports*') ? 'active' : '' }}">
+                                    <a href="{{ route('hrms.attendance.reports') }}"><span class="sub-item">Attendance Reports</span></a>
+                                </li>
+                            @endif
                             <li class="{{ $isLeaveMenuActive ? 'active submenu' : '' }}">
                                 <a data-bs-toggle="collapse" href="#hrmsLeaveMenu" class="{{ $isLeaveMenuActive ? '' : 'collapsed' }}" aria-expanded="{{ $isLeaveMenuActive ? 'true' : 'false' }}">
                                     <span class="sub-item">Leave Management</span>

@@ -13,7 +13,9 @@ use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use InvalidArgumentException;
 use RuntimeException;
 
@@ -249,82 +251,118 @@ class AttendanceService implements AttendanceServiceInterface
     public function markCheckIn(int $userId, array $data): Attendance
     {
         $this->validateActiveUser($userId);
-        $today = Carbon::today();
-        $holiday = $this->holidayService->active()->first(
-            fn ($item): bool => $today->betweenIncluded($item->from_date, $item->to_date)
-        );
-        if ($holiday !== null) {
-            throw new RuntimeException('Attendance cannot be marked on a company holiday.');
-        }
-        if ($this->companySettingService->isWeeklyOff($today)) {
-            throw new RuntimeException('Attendance cannot be marked on a weekly off.');
-        }
+        $attendanceDate = $this->resolveAttendanceDate($data['attendance_date'] ?? null);
+        $this->validateAttendanceContext($attendanceDate);
 
-        return DB::transaction(function () use ($userId, $data, $today): Attendance {
-            if ($this->getAttendanceByDate($userId, $today) instanceof Attendance) {
-                throw new RuntimeException("User [{$userId}] has already checked in today.");
-            }
+        try {
+            return DB::transaction(function () use ($userId, $data, $attendanceDate): Attendance {
+                $existingAttendance = $this->attendance
+                    ->where('user_id', $userId)
+                    ->whereDate('attendance_date', $attendanceDate->toDateString())
+                    ->lockForUpdate()
+                    ->first();
 
-            $checkIn = $this->resolveTime($data['check_in'] ?? null);
+                if ($existingAttendance instanceof Attendance) {
+                    throw new RuntimeException('Attendance already exists for this employee and date.');
+                }
 
-            $attendance = $this->attendance->create([
+                $checkIn = $this->resolveTime($data['check_in'] ?? null);
+
+                $attendance = $this->attendance->create([
+                    'user_id' => $userId,
+                    'attendance_date' => $attendanceDate->toDateString(),
+                    'check_in' => $checkIn->format('H:i:s'),
+                    'status' => 'Present',
+                    'working_hours' => 0,
+                    'late_minutes' => 0,
+                    'half_day' => false,
+                ]);
+
+                $this->calculateLateMinutes($attendance->id);
+
+                return $this->findAttendance($attendance->id);
+            });
+        } catch (QueryException $exception) {
+            Log::warning('Duplicate attendance check-in blocked.', [
                 'user_id' => $userId,
-                'attendance_date' => $today->toDateString(),
-                'check_in' => $checkIn->format('H:i:s'),
-                'status' => 'Present',
-                'working_hours' => 0,
-                'late_minutes' => 0,
-                'half_day' => false,
+                'attendance_date' => $attendanceDate->toDateString(),
+                'exception' => $exception->getMessage(),
             ]);
 
-            $this->calculateLateMinutes($attendance->id);
+            throw new RuntimeException('Attendance already exists for this employee and date.', 0, $exception);
+        } catch (RuntimeException $exception) {
+            throw $exception;
+        } catch (\Throwable $exception) {
+            Log::error('Unexpected attendance check-in exception.', [
+                'user_id' => $userId,
+                'attendance_date' => $attendanceDate->toDateString(),
+                'exception' => $exception,
+            ]);
 
-            return $this->findAttendance($attendance->id);
-        });
+            throw new RuntimeException('Unable to mark attendance. Please try again or contact the administrator.', 0, $exception);
+        }
     }
 
     /** Mark employee checkout for today. */
     public function markCheckOut(int $userId): Attendance
     {
         $this->validateActiveUser($userId);
+        $today = Carbon::today();
+        $this->validateAttendanceContext($today);
 
-        return DB::transaction(function () use ($userId): Attendance {
-            $attendance = $this->attendance->with(['user.userDetail', 'user.roles'])
-            ->where('user_id', $userId)
-            ->whereDate('attendance_date', $today->toDateString())
-            ->first();
+        try {
+            return DB::transaction(function () use ($userId, $today): Attendance {
+                $attendance = $this->attendance->with(['user.userDetail', 'user.roles'])
+                    ->where('user_id', $userId)
+                    ->whereDate('attendance_date', $today->toDateString())
+                    ->lockForUpdate()
+                    ->first();
 
-            if (! $attendance instanceof Attendance) {
-                throw new RuntimeException("Today attendance was not found for user [{$userId}].");
-            }
+                if (! $attendance instanceof Attendance) {
+                    throw new RuntimeException("Today attendance was not found for user [{$userId}].");
+                }
 
-            if ($attendance->check_out !== null) {
-                throw new RuntimeException("User [{$userId}] has already checked out today.");
-            }
+                if ((int) $attendance->user_id !== $userId) {
+                    throw new RuntimeException('Attendance belongs to another employee.');
+                }
 
-            if ($attendance->check_in === null) {
-                throw new RuntimeException("User [{$userId}] has not checked in today.");
-            }
+                if ($attendance->check_out !== null) {
+                    throw new RuntimeException("User [{$userId}] has already checked out today.");
+                }
 
-            $checkOut = Carbon::now();
-            $checkIn = $this->attendanceDateTime($attendance, 'check_in');
+                if ($attendance->check_in === null) {
+                    throw new RuntimeException("User [{$userId}] has not checked in today.");
+                }
 
-            if ($checkOut->lessThanOrEqualTo($checkIn)) {
-                throw new RuntimeException('Checkout time must be greater than check-in time.');
-            }
+                $checkOut = Carbon::now();
+                $checkIn = $this->attendanceDateTime($attendance, 'check_in');
 
-            $attendance->update([
-                'check_out' => $checkOut->format('H:i:s'),
+                if ($checkOut->lessThanOrEqualTo($checkIn)) {
+                    throw new RuntimeException('Checkout time must be greater than check-in time.');
+                }
+
+                $attendance->update([
+                    'check_out' => $checkOut->format('H:i:s'),
+                ]);
+
+                $this->calculateWorkingHours($attendance->id);
+                $this->detectHalfDay($attendance->id);
+                $this->updateAttendanceStatus($attendance->id);
+
+                return $this->findAttendance($attendance->id);
+            });
+        } catch (RuntimeException $exception) {
+            throw $exception;
+        } catch (\Throwable $exception) {
+            Log::error('Unexpected attendance check-out exception.', [
+                'user_id' => $userId,
+                'attendance_date' => $today->toDateString(),
+                'exception' => $exception,
             ]);
 
-            $this->calculateWorkingHours($attendance->id);
-            $this->detectHalfDay($attendance->id);
-            $this->updateAttendanceStatus($attendance->id);
-
-            return $this->findAttendance($attendance->id);
-        });
+            throw new RuntimeException('Unable to mark check-out. Please try again or contact the administrator.', 0, $exception);
+        }
     }
-
     /** Calculate and update working hours for an attendance record. */
     public function calculateWorkingHours(int $attendanceId): float
     {
@@ -582,7 +620,44 @@ class AttendanceService implements AttendanceServiceInterface
             throw new InvalidArgumentException('Attendance time must be a string.');
         }
 
-        return Carbon::createFromFormat('H:i:s', $time);
+        try {
+            $resolved = Carbon::createFromFormat('H:i:s', $time);
+        } catch (\Throwable $exception) {
+            throw new InvalidArgumentException('Attendance time must use H:i:s format.', 0, $exception);
+        }
+
+        if ($resolved === false || $resolved->format('H:i:s') !== $time) {
+            throw new InvalidArgumentException('Attendance time must use H:i:s format.');
+        }
+
+        return $resolved;
+    }
+
+    /** Resolve the attendance date from a request payload or today. */
+    protected function resolveAttendanceDate(mixed $date): Carbon
+    {
+        if ($date === null || $date === '') {
+            return Carbon::today();
+        }
+
+        if (! is_string($date)) {
+            throw new InvalidArgumentException('Attendance date is invalid.');
+        }
+
+        try {
+            $resolved = Carbon::createFromFormat('Y-m-d', $date);
+        } catch (\Throwable $exception) {
+            throw new InvalidArgumentException('Attendance date format is invalid.', 0, $exception);
+        }
+
+        if ($resolved === false || $resolved->format('Y-m-d') !== $date) {
+            throw new InvalidArgumentException('Attendance date format is invalid.');
+        }
+
+        $resolved->startOfDay();
+        $this->validateAttendanceDate($resolved);
+
+        return $resolved;
     }
 
     /** Build a Carbon instance for an attendance time field. */
@@ -616,11 +691,73 @@ class AttendanceService implements AttendanceServiceInterface
         return $start->floatDiffInHours($end);
     }
 
+    /** Validate settings, holidays, and weekly off before marking attendance. */
+    protected function validateAttendanceContext(Carbon $date): void
+    {
+        $this->validateAttendanceDate($date);
+        $this->validateCompanyAttendanceSettings();
+
+        $holiday = $this->holidayService->active()->first(
+            fn ($item): bool => $date->betweenIncluded($item->from_date, $item->to_date)
+        );
+
+        if ($holiday !== null) {
+            throw new RuntimeException('Attendance cannot be marked on a company holiday.');
+        }
+
+        if ($this->companySettingService->isWeeklyOff($date)) {
+            throw new RuntimeException('Attendance cannot be marked on a weekly off.');
+        }
+    }
+
+    /** Validate required company attendance settings. */
+    protected function validateCompanyAttendanceSettings(): void
+    {
+        $message = 'Company attendance settings are incomplete. Please contact the administrator.';
+
+        try {
+            $officeStart = $this->companySettingService->getOfficeStartTime();
+            $officeEnd = $this->companySettingService->getOfficeEndTime();
+            $lateThreshold = $this->companySettingService->getLateThreshold();
+            $halfDayThreshold = $this->companySettingService->getHalfDayThreshold();
+            $weeklyOff = $this->companySettingService->getWeeklyOff();
+
+            foreach ([$officeStart, $officeEnd, $weeklyOff] as $value) {
+                if (trim((string) $value) === '') {
+                    throw new RuntimeException($message);
+                }
+            }
+
+            $start = Carbon::createFromFormat('H:i:s', $officeStart);
+            $end = Carbon::createFromFormat('H:i:s', $officeEnd);
+
+            if (
+                $start === false
+                || $end === false
+                || $start->format('H:i:s') !== $officeStart
+                || $end->format('H:i:s') !== $officeEnd
+                || $end->lessThanOrEqualTo($start)
+                || $lateThreshold < 0
+                || $halfDayThreshold <= $lateThreshold
+                || ! in_array($weeklyOff, ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'], true)
+            ) {
+                throw new RuntimeException($message);
+            }
+        } catch (RuntimeException $exception) {
+            throw $exception->getMessage() === $message ? $exception : new RuntimeException($message, 0, $exception);
+        } catch (\Throwable $exception) {
+            throw new RuntimeException($message, 0, $exception);
+        }
+    }
     /** Validate attendance date. */
     protected function validateAttendanceDate(Carbon $date): void
     {
         if ($date->year < 2000) {
             throw new InvalidArgumentException('Attendance date is invalid.');
+        }
+
+        if ($date->isFuture()) {
+            throw new InvalidArgumentException('Attendance date cannot be in the future.');
         }
     }
 
@@ -647,3 +784,5 @@ class AttendanceService implements AttendanceServiceInterface
         }
     }
 }
+
+

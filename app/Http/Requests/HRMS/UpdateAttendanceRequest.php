@@ -29,9 +29,9 @@ class UpdateAttendanceRequest extends FormRequest
     {
         return [
             'user_id' => ['sometimes', 'required', 'integer', 'exists:users,id'],
-            'attendance_date' => ['sometimes', 'required', 'date'],
+            'attendance_date' => ['sometimes', 'required', 'date_format:Y-m-d', 'before_or_equal:today'],
             'check_in' => ['nullable', 'date_format:H:i:s'],
-            'check_out' => ['nullable', 'date_format:H:i:s'],
+            'check_out' => ['nullable', 'date_format:H:i:s', 'after:check_in'],
             'working_hours' => ['nullable', 'numeric', 'min:0'],
             'late_minutes' => ['nullable', 'integer', 'min:0'],
             'half_day' => ['nullable', 'boolean'],
@@ -49,6 +49,9 @@ class UpdateAttendanceRequest extends FormRequest
         return [
             'user_id.exists' => 'Selected employee does not exist.',
             'attendance_date.required' => 'Attendance date is required.',
+            'attendance_date.date_format' => 'Attendance date format is invalid.',
+            'attendance_date.before_or_equal' => 'Attendance date cannot be in the future.',
+            'check_out.after' => 'Check-out time must be after check-in time.',
             'status.required' => 'Attendance status is required.',
         ];
     }
@@ -71,3 +74,4 @@ class UpdateAttendanceRequest extends FormRequest
         ];
     }
 }
+

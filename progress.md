@@ -278,3 +278,27 @@ Legacy Modules: Holiday and LeaveType were implemented before the standardized H
 - Attendance legend added: Present, Late, Half Day, Leave, Absent, Holiday, and Weekly Off use Bootstrap badges below the calendar.
 - Browser verification completed: CLI authenticated render checks verified July 2026 alignment (`2026-07-01` under Wednesday), grid boundaries (`2026-06-29`–`2026-08-02`), navigation links, legend, dynamic holidays, weekly offs, and toggle confirmation/completed markup. Interactive browser clicking was unavailable from CLI.
 - Verification commands passed: `optimize:clear`, `optimize`, `view:cache`, full `route:list`, `about`, targeted controller/service lint, full app PHP lint, authenticated calendar rendering, and live holiday/weekly-off data checks passed.
+
+- Task completed: Implemented the HRMS Attendance Reporting module from `mdfiles/10E2_hrms_attendance_reporting.md`.
+- Attendance Reports completed: Added an HR/Admin-authorized reporting dashboard with today summary cards, monthly holiday/weekly-off totals, retained filters, attendance records, export placeholders, Print, responsive tables, and empty states.
+- Employee Report completed: Added employee identity/photo, department/designation, present, late, half-day, leave, holiday, weekly-off, absent, total working hours, and average check-in/check-out analytics prepared by AttendanceController from eager AttendanceService data.
+- Department Report completed: Added department employee totals, attendance categories, and prepared average attendance percentage.
+- Monthly Report completed: Added month/year-selectable employee summaries for all required attendance categories and working hours.
+- Summary cards integrated: Total employees, Present/Absent/Late/Half Day/Leave Today come from `getTodaySummary`; month holiday and weekly-off counts come from the existing prepared calendar response.
+- Filters integrated: Employee name/code, department, designation, status, date range, month, year, and page size are retained. A separate Year selection correctly overrides the year embedded in the Month control.
+- Pagination integrated: Dashboard records and aggregate reports support 10, 25, 50, and 100 rows with retained query strings.
+- Files created: `Attendance/Reports/index.blade.php`, `employee-report.blade.php`, `department-report.blade.php`, `monthly-report.blade.php`, and `_partials/summary-cards.blade.php`, `filters.blade.php`, `attendance-table.blade.php`.
+- Browser verification completed: Authenticated CLI render checks passed for all four report pages with no undefined variables or Blade errors. Retained-filter verification returned selected month `2025-07`, selected year `2025`, and page size `25`. The attendance table currently has no records, so populated production analytics could not be visually exercised; all report empty states rendered correctly.
+- Verification commands passed: `optimize:clear`, `optimize`, `view:cache`, full `route:list`, `about`, targeted controller lint, full app PHP lint, authenticated report rendering, filter/pagination verification, and scoped diff integrity checks passed.
+
+- Task completed: Implemented the HRMS Attendance validation and security refinement from `10E3_hrms_attendance_validation.md`.
+- Attendance validation completed: Check-in/check-out now validate active users, valid attendance dates, valid time format, company settings, holidays, weekly offs, and legal attendance state transitions through AttendanceService.
+- Authorization refined: Attendance management resource actions are restricted to HR/Admin; employees can only view their own attendance, and cross-employee access returns HTTP 403.
+- Duplicate protection verified: Duplicate check-in is blocked before insert with a locked lookup plus the existing database unique constraint fallback; duplicate checkout is blocked once `check_out` exists.
+- Holiday validation completed: Existing HolidayService active ranges block attendance on single-day and multi-day company holidays.
+- Weekly Off validation completed: CompanySettingService weekly-off configuration blocks attendance without hardcoded weekdays.
+- Company Settings validation completed: Missing or invalid office start/end, late threshold, half-day threshold, or weekly off blocks attendance with the required administrator message.
+- State transition validation completed: Checkout without check-in, checkout before check-in, repeated checkout, and completed-to-check-in transitions are rejected with user-friendly flash/error messages.
+- Error handling completed: Attendance controller actions use existing flash messages; unexpected exceptions are logged through Laravel logging without exposing stack traces.
+- Browser verification completed: CLI HTTP/render and service smoke checks verified duplicate check-in, duplicate checkout, holiday block, weekly-off block, unauthorized 403, future-date rejection, invalid transition rejection, inactive-user rejection, flash-message paths, no 500s, and no undefined variables.
+- Verification commands passed: `docker compose exec app php artisan optimize:clear`, `optimize`, `view:cache`, `route:list`, `about`, targeted validation smoke checks, rollback-only inactive/settings checks, and full app PHP lint all passed.
