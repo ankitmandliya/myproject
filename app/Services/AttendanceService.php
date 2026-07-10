@@ -188,9 +188,43 @@ class AttendanceService implements AttendanceServiceInterface
             'weeks' => $weeks,
         ];
     }
+    /** Auto-finalize previous open attendance records for a user. */
+    public function autoFinalizeOpenAttendance(int $userId): int
+    {
+        $this->validateActiveUser($userId);
+        $today = Carbon::today()->toDateString();
+        $finalized = 0;
+
+        DB::transaction(function () use ($userId, $today, &$finalized): void {
+            $records = $this->attendance
+                ->where('user_id', $userId)
+                ->whereDate('attendance_date', '<', $today)
+                ->whereNotNull('check_in')
+                ->whereNull('check_out')
+                ->orderBy('attendance_date')
+                ->lockForUpdate()
+                ->get();
+
+            foreach ($records as $attendance) {
+                $officeClose = $this->timeOnAttendanceDate($attendance, $this->companySettingService->getOfficeEndTime());
+                $checkIn = $this->attendanceDateTime($attendance, 'check_in');
+                $checkOut = $officeClose->greaterThan($checkIn) ? $officeClose : $checkIn->copy()->addMinute();
+
+                $attendance->update(['check_out' => $checkOut->format('H:i:s')]);
+                $this->calculateLateMinutes($attendance->id);
+                $this->calculateWorkingHours($attendance->id);
+                $this->detectHalfDay($attendance->id);
+                $this->updateAttendanceStatus($attendance->id);
+                $finalized++;
+            }
+        });
+
+        return $finalized;
+    }
     /** Get the complete authenticated-user header attendance view model. */
     public function getTodayAttendanceWidget(int $userId): array
     {
+        $this->autoFinalizeOpenAttendance($userId);
         $employee = $this->userService->getEmployeeProfile($userId);
         $today = Carbon::today();
         $now = Carbon::now();
@@ -208,12 +242,11 @@ class AttendanceService implements AttendanceServiceInterface
         $lateThreshold = $this->companySettingService->getLateThreshold();
         $halfDayThreshold = $this->companySettingService->getHalfDayThreshold();
         $completed = $attendance?->check_out !== null;
-        $attendanceStatus = ($attendance?->half_day ?? false)
-            ? 'Half Day'
-            : ((int) ($attendance?->late_minutes ?? 0) > 0 ? 'Late' : ($attendance?->status ?? 'Attendance Pending'));
         $canCheckIn = ! $isHoliday && ! $isWeeklyOff && $attendance === null;
         $canCheckOut = ! $isHoliday && ! $isWeeklyOff && $attendance?->check_in !== null && ! $completed;
-        $status = $isHoliday ? 'Holiday' : ($isWeeklyOff ? 'Weekly Off' : ($completed ? 'Attendance Completed' : ($attendanceStatus)));
+        $status = $isHoliday
+            ? 'Holiday'
+            : ($isWeeklyOff ? 'Weekly Off' : ($completed ? 'Attendance Completed' : ($canCheckOut ? 'ON' : 'OFF')));
         $detail = $employee->userDetail;
 
         return [
@@ -235,7 +268,7 @@ class AttendanceService implements AttendanceServiceInterface
             'holidayDate' => $holiday?->from_date?->format('d M Y'),
             'officeOpen' => ! $isHoliday && ! $isWeeklyOff,
             'todayDate' => $today->format('d M Y'),
-            'currentTime' => $now->format('h:i A'),
+            'currentTime' => $now->format('h:i A T'),
             'employeeName' => trim(($detail?->first_name ?? '') . ' ' . ($detail?->last_name ?? '')) ?: $employee->name,
             'employeeCode' => $detail?->emp_code,
             'workingHours' => $attendance?->working_hours,
@@ -251,6 +284,7 @@ class AttendanceService implements AttendanceServiceInterface
     public function markCheckIn(int $userId, array $data): Attendance
     {
         $this->validateActiveUser($userId);
+        $this->autoFinalizeOpenAttendance($userId);
         $attendanceDate = $this->resolveAttendanceDate($data['attendance_date'] ?? null);
         $this->validateAttendanceContext($attendanceDate);
 
@@ -308,7 +342,7 @@ class AttendanceService implements AttendanceServiceInterface
     {
         $this->validateActiveUser($userId);
         $today = Carbon::today();
-        $this->validateAttendanceContext($today);
+        $this->validateCompanyAttendanceSettings();
 
         try {
             return DB::transaction(function () use ($userId, $today): Attendance {
@@ -784,5 +818,9 @@ class AttendanceService implements AttendanceServiceInterface
         }
     }
 }
+
+
+
+
 
 

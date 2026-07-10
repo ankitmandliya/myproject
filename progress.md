@@ -302,3 +302,40 @@ Legacy Modules: Holiday and LeaveType were implemented before the standardized H
 - Error handling completed: Attendance controller actions use existing flash messages; unexpected exceptions are logged through Laravel logging without exposing stack traces.
 - Browser verification completed: CLI HTTP/render and service smoke checks verified duplicate check-in, duplicate checkout, holiday block, weekly-off block, unauthorized 403, future-date rejection, invalid transition rejection, inactive-user rejection, flash-message paths, no 500s, and no undefined variables.
 - Verification commands passed: `docker compose exec app php artisan optimize:clear`, `optimize`, `view:cache`, `route:list`, `about`, targeted validation smoke checks, rollback-only inactive/settings checks, and full app PHP lint all passed.
+
+- Task completed: Finalized the HRMS Attendance production polish from `mdfiles/10E4_hrms_attendance_final_polish.md`.
+- Attendance UI polished: Calendar, history, list, header widget, reports, filters, tables, cards, badges, actions, and empty states now use more consistent Bootstrap/KaiAdmin spacing and typography.
+- Responsive refinements completed: Calendar cells, summary cards, report actions, filters, tables, and header widget dropdown now wrap more predictably across desktop, tablet, and mobile widths.
+- Accessibility improvements completed: Attendance widget labels, modal body text, icon `aria-hidden` usage, action button labels, table headings, empty-state icons, and form labels were refined without adding third-party libraries.
+- Performance review completed: Blade changes reuse existing controller/service data, pagination, includes, and eager-loaded relationships; no new loops, queries, controllers, services, models, migrations, or APIs were introduced.
+- Blade cleanup completed: Compressed report Blade markup was expanded into maintainable templates, repeated report partials were cleaned, and table/filter markup was normalized.
+- Browser compatibility verified: CLI-rendered Chrome/Edge/Firefox-compatible Bootstrap markup was verified for calendar, header toggle, tables, modals, dropdowns, reports, filters, and responsive layout states. Interactive cross-browser clicking was not available from CLI.
+- Final attendance production review completed: Sidebar highlighting now separates Attendance from Attendance Reports, breadcrumbs are consistent across Attendance pages, uploaded/fallback avatars retain sizing, and existing Attendance behavior remains unchanged.
+- Verification commands passed: `docker compose exec app php artisan optimize:clear`, `optimize`, `view:cache`, `route:list`, `about`, authenticated render smoke checks for Attendance pages, and full app PHP lint all passed.
+
+- Task completed: Fixed final HRMS Attendance functional bugs from `mdfiles/10E5_hrms_attendance_functional_bugfix.md`.
+- Checkout fixed: Header checkout and Attendance List checkout now update today's attendance, save checkout time, calculate working hours, refresh attendance status, and show `Attendance Completed` immediately.
+- Auto checkout implemented: Previous open attendance records are auto-finalized on the next day using the configured office end time, then existing working-hours, late, half-day, and status calculations are reused.
+- Daily toggle reset implemented: Header widget now evaluates only today's attendance and displays the required `OFF`, `ON`, and `Attendance Completed` states, so yesterday's open record never blocks today's check-in.
+- Future dummy attendance removed: Development demo calendar generation was removed; future months now show no fake Present/Late/Leave/Absent records.
+- Calendar corrected: Calendar navigation uses real attendance only while continuing to display dynamic holidays, weekly offs, and today highlighting; holiday priority over attendance was verified.
+- Modal overlay fixed: Attendance modal submissions now hide through Bootstrap's modal lifecycle before submit, preventing stale modal backdrops and frozen screens.
+- Widget synchronization completed: Header widget, calendar, attendance list, and employee attendance pages now share the same service-owned attendance state after check-in, checkout, and auto-finalization.
+- Browser verification passed: CLI smoke checks verified check-in, checkout, forgotten checkout auto-finalization, next-day login reset, calendar navigation behavior, holiday priority, no duplicate attendance, no dummy future attendance, and no render errors. Interactive browser clicking was not available from CLI.
+- Verification commands passed: `docker compose exec app php artisan optimize:clear`, `optimize`, `view:cache`, `route:list`, `about`, authenticated render smoke checks, rollback-only functional checks, and full app PHP lint all passed.
+
+- Task completed: Standardized HRMS timezone and fixed Attendance modal behavior from `mdfiles/10E6_hrms_global_timezone_and_modal_fix.md`.
+- Global Asia/Kolkata timezone configured: `.env` now defines `APP_TIMEZONE=Asia/Kolkata`.
+- Laravel timezone standardized: `config/app.php` now uses `env('APP_TIMEZONE', 'Asia/Kolkata')`, making Laravel configuration the single source of truth.
+- Carbon usage standardized: Runtime audit found no remaining `gmdate()`, `date()`, `time()`, `strtotime()`, or UTC-specific Carbon usage in app/config/routes/resources; the previous widget `gmdate()` was removed.
+- Attendance uses IST: Check-in, checkout, auto-checkout, widget current time, calendar, reports, and history continue to use Laravel/Carbon time in the configured timezone.
+- Leave uses IST: Leave services use `Carbon::today()`, `Carbon::now()`, and Carbon parsing under Laravel's configured timezone.
+- Salary uses IST: Salary generation and payroll month/year defaults use `now()` under Laravel's configured timezone.
+- Dashboard uses IST: Dashboard today/month calculations use `Carbon::today()` and `now()` under Laravel's configured timezone.
+- Holiday comparisons use IST: Holiday date comparisons continue through Carbon values under the app timezone.
+- Future development timezone rule documented: Future HRMS code should use Laravel `now()`, `today()`, `Carbon::now()`, or Carbon parsing, never server/UTC helpers directly.
+- Attendance modal backdrop fixed: Attendance modal submit now uses AJAX, Bootstrap modal hide/lifecycle events, duplicate-submit prevention, loading spinner handling, and stale-backdrop cleanup on `hidden.bs.modal`.
+- Header widget updated: Header widget displays the app-timezone date/time with IST and refreshes after AJAX check-in/check-out without requiring a full page refresh.
+- Bootstrap modal lifecycle corrected: Modal state cleanup restores `modal-open`, body overflow/padding, and leftover `.modal-backdrop` only through Bootstrap modal events.
+- Browser verification completed: CLI verification confirmed app timezone `Asia/Kolkata`, current time `IST`, AJAX check-in/check-out JSON responses, widget state refresh, no render errors, and no runtime raw time calls. Interactive browser clicking was not available from CLI.
+- Verification commands passed: `optimize:clear`, `optimize`, `config:clear`, `config:cache`, `view:cache`, `route:list`, `about`, targeted timezone/AJAX smoke checks, and full app PHP lint all passed.

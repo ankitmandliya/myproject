@@ -4,10 +4,21 @@
         || request()->routeIs('holidays.*')
         || request()->routeIs('hrms.leave-apply.*');
 
+    $canManageAttendance = auth()->user()?->roles?->pluck('role_name')->intersect(['Admin', 'HR'])->isNotEmpty() ?? false;
+    $isAttendanceMenuActive = request()->routeIs('hrms.attendance.index')
+        || request()->routeIs('hrms.attendance.create')
+        || request()->routeIs('hrms.attendance.show')
+        || request()->routeIs('hrms.attendance.edit')
+        || request()->routeIs('hrms.attendance.calendar')
+        || request()->routeIs('hrms.attendance.employee')
+        || request()->routeIs('hrms.attendance.history')
+        || request()->routeIs('hrms.my-attendance');
+    $isAttendanceReportsActive = request()->routeIs('hrms.attendance.reports*');
+
     $isHrmsMenuActive = request()->routeIs('hrms.dashboard')
         || request()->routeIs('hrms.users.*')
-        || request()->routeIs('hrms.attendance.*')
-        || request()->routeIs('hrms.my-attendance')
+        || $isAttendanceMenuActive
+        || $isAttendanceReportsActive
         || request()->routeIs('hrms.salary.*')
         || request()->routeIs('hrms.roles.*')
         || request()->routeIs('hrms.company-setting.*')
@@ -64,13 +75,16 @@
                                     <span class="sub-item">Employees</span>
                                 </a>
                             </li>
-                            <li class="{{ request()->routeIs('hrms.attendance.*') ? 'active' : '' }}">
-                                <a href="{{ auth()->user()->roles->pluck('role_name')->intersect(['Admin', 'HR'])->isNotEmpty() ? route('hrms.attendance.index') : route('hrms.my-attendance') }}">
-                                    <span class="sub-item">{{ auth()->user()->roles->pluck('role_name')->intersect(['Admin', 'HR'])->isNotEmpty() ? 'Attendance' : 'My Attendance' }}</span>
+                            <li class="{{ $isAttendanceMenuActive ? 'active' : '' }}">
+                                <a href="{{ $canManageAttendance ? route('hrms.attendance.index') : route('hrms.my-attendance') }}">
+                                    <span class="sub-item">{{ $canManageAttendance ? 'Attendance' : 'My Attendance' }}</span>
                                 </a>
-                            </li>                            @if(auth()->user()->roles->pluck('role_name')->intersect(['Admin', 'HR'])->isNotEmpty())
-                                <li class="{{ request()->routeIs('hrms.attendance.reports*') ? 'active' : '' }}">
-                                    <a href="{{ route('hrms.attendance.reports') }}"><span class="sub-item">Attendance Reports</span></a>
+                            </li>
+                            @if($canManageAttendance)
+                                <li class="{{ $isAttendanceReportsActive ? 'active' : '' }}">
+                                    <a href="{{ route('hrms.attendance.reports') }}">
+                                        <span class="sub-item">Attendance Reports</span>
+                                    </a>
                                 </li>
                             @endif
                             <li class="{{ $isLeaveMenuActive ? 'active submenu' : '' }}">
@@ -121,3 +135,4 @@
     </div>
 </div>
 <!-- End Sidebar -->
+

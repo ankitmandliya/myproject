@@ -12,6 +12,7 @@ use App\Http\Requests\HRMS\StoreAttendanceRequest;
 use App\Http\Requests\HRMS\UpdateAttendanceRequest;
 use Carbon\Carbon;
 use Illuminate\Contracts\View\View;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -114,7 +115,21 @@ class AttendanceController extends Controller
     public function update(UpdateAttendanceRequest $request, int $id): RedirectResponse
     {
         $this->authorizeAttendanceManagement();
-        $this->attendanceService->getById($id);
+        $attendance = $this->attendanceService->getById($id);
+
+        if ($attendance->check_in !== null && $attendance->check_out === null) {
+            try {
+                $this->attendanceService->markCheckOut((int) $attendance->user_id);
+            } catch (RuntimeException|InvalidArgumentException $exception) {
+                return back()->with('error', $exception->getMessage());
+            } catch (Throwable $exception) {
+                Log::error('Unexpected attendance update checkout exception.', ['attendance_id' => $id, 'exception' => $exception]);
+
+                return back()->with('error', 'Unable to mark check-out. Please try again or contact the administrator.');
+            }
+
+            return redirect()->route('hrms.attendance.index')->with('success', 'Check-out marked successfully.');
+        }
 
         return redirect()->route('hrms.attendance.index')->with('success', 'Attendance updated successfully.');
     }
@@ -201,26 +216,7 @@ class AttendanceController extends Controller
         $year = (int) $calendarMonth->year;
         $calendarData = $this->attendanceService->getMonthlyCalendar($month, $year, $employeeId);
         $attendanceSummary = $this->attendanceService->getUserAttendanceSummary($employeeId, $month, $year);
-        $isDemoCalendar = ! $calendarData['has_attendance'] && app()->environment(['local', 'testing']);
-
-        if ($isDemoCalendar) {
-            $demoStatuses = [
-                'Present', 'Present', 'Late', 'Present', 'Half Day', 'Present', 'Absent',
-                'Present', 'Leave', 'Present', 'Absent', 'Present', 'Present', 'Late',
-                'Present', 'Late', 'Present', 'Half Day', 'Present', 'Present', 'Leave',
-                'Present', 'Present', 'Leave', 'Present', 'Late', 'Present', 'Absent',
-            ];
-            foreach ($calendarData['weeks'] as &$week) {
-                foreach ($week as &$day) {
-                    if ($day['is_current_month'] && $day['status'] === 'No Attendance') {
-                        $day['status'] = $demoStatuses[($day['day'] - 1) % count($demoStatuses)];
-                        $day['statuses'] = [$day['status']];
-                    }
-                }
-                unset($day);
-            }
-            unset($week);
-        }
+        $isDemoCalendar = false;
 
         return view('Adminpanel.HRMS.Attendance.attendance-calendar', compact(
             'calendarData', 'isDemoCalendar', 'employee', 'attendanceSummary'
@@ -321,36 +317,62 @@ class AttendanceController extends Controller
     }
 
     /** Check in the authenticated user. */
-    public function widgetCheckIn(): RedirectResponse
+    public function widgetCheckIn(): RedirectResponse|JsonResponse
     {
         abort_unless(auth()->check(), 403);
 
         try {
             $this->attendanceService->markCheckIn((int) auth()->id(), []);
         } catch (RuntimeException|InvalidArgumentException $exception) {
+            if (request()->ajax() || request()->expectsJson()) {
+                return response()->json(['success' => false, 'message' => $exception->getMessage()], 422);
+            }
+
             return back()->with('error', $exception->getMessage());
         } catch (Throwable $exception) {
             Log::error('Unexpected widget check-in exception.', ['user_id' => auth()->id(), 'exception' => $exception]);
+            $message = 'Unable to mark check-in. Please try again or contact the administrator.';
 
-            return back()->with('error', 'Unable to mark check-in. Please try again or contact the administrator.');
+            if (request()->ajax() || request()->expectsJson()) {
+                return response()->json(['success' => false, 'message' => $message], 500);
+            }
+
+            return back()->with('error', $message);
+        }
+
+        if (request()->ajax() || request()->expectsJson()) {
+            return response()->json(['success' => true, 'message' => 'Check-in marked successfully.']);
         }
 
         return back()->with('success', 'Check-in marked successfully.');
     }
 
     /** Check out the authenticated user. */
-    public function widgetCheckOut(): RedirectResponse
+    public function widgetCheckOut(): RedirectResponse|JsonResponse
     {
         abort_unless(auth()->check(), 403);
 
         try {
             $this->attendanceService->markCheckOut((int) auth()->id());
         } catch (RuntimeException|InvalidArgumentException $exception) {
+            if (request()->ajax() || request()->expectsJson()) {
+                return response()->json(['success' => false, 'message' => $exception->getMessage()], 422);
+            }
+
             return back()->with('error', $exception->getMessage());
         } catch (Throwable $exception) {
             Log::error('Unexpected widget check-out exception.', ['user_id' => auth()->id(), 'exception' => $exception]);
+            $message = 'Unable to mark check-out. Please try again or contact the administrator.';
 
-            return back()->with('error', 'Unable to mark check-out. Please try again or contact the administrator.');
+            if (request()->ajax() || request()->expectsJson()) {
+                return response()->json(['success' => false, 'message' => $message], 500);
+            }
+
+            return back()->with('error', $message);
+        }
+
+        if (request()->ajax() || request()->expectsJson()) {
+            return response()->json(['success' => true, 'message' => 'Check-out marked successfully.']);
         }
 
         return back()->with('success', 'Check-out marked successfully.');
@@ -533,4 +555,7 @@ class AttendanceController extends Controller
         return $this->rolePermissionService->userHasAnyRole((int) auth()->id(), ['Admin', 'HR']);
     }
 }
+
+
+
 

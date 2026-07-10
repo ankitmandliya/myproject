@@ -17,7 +17,7 @@ return new class extends Migration
             $table->string('last_name', 100)->nullable();
             $table->enum('gender', ['Male', 'Female', 'Other'])->nullable();
             $table->date('dob')->nullable();
-            $table->date('joining_date')->default(DB::raw('(CURRENT_DATE)'));
+            $table->date('joining_date');
             $table->string('department', 100)->nullable();
             $table->string('designation', 100)->nullable();
             $table->decimal('basic_salary', 10, 2)->default(0.00);
@@ -38,4 +38,5 @@ return new class extends Migration
         Schema::dropIfExists('user_details');
     }
 };
+
 

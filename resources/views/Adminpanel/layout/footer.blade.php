@@ -161,29 +161,82 @@ $("#lineChart3").sparkline([105, 103, 123, 100, 95, 105, 115], {
  </script> -->
  <script>
  document.addEventListener('DOMContentLoaded', function () {
-     const container = document.getElementById('attendance-widget-container');
-     if (container) {
-         fetch(container.dataset.widgetUrl, {headers: {'X-Requested-With': 'XMLHttpRequest'}})
-             .then(function (response) { if (!response.ok) throw new Error('Attendance widget failed'); return response.text(); })
-             .then(function (html) { container.insertAdjacentHTML('beforebegin', html); container.remove(); })
-             .catch(function () { container.remove(); });
-     }
+     loadAttendanceWidget();
  });
+
+ function attendanceWidgetTarget() {
+     return document.getElementById('attendance-widget-live') || document.getElementById('attendance-widget-container');
+ }
+
+ function loadAttendanceWidget() {
+     const target = attendanceWidgetTarget();
+     if (!target || !target.dataset.widgetUrl) return Promise.resolve();
+
+     return fetch(target.dataset.widgetUrl, {headers: {'X-Requested-With': 'XMLHttpRequest'}})
+         .then(function (response) {
+             if (!response.ok) throw new Error('Attendance widget failed');
+             return response.text();
+         })
+         .then(function (html) {
+             target.insertAdjacentHTML('beforebegin', html);
+             target.remove();
+         })
+         .catch(function () {
+             if (target.id === 'attendance-widget-container') target.remove();
+         });
+ }
+
  document.addEventListener('click', function (event) {
      const toggle = event.target.closest('[data-attendance-toggle]');
      if (!toggle) return;
      event.preventDefault();
      const modal = document.querySelector(toggle.dataset.confirmTarget);
      if (modal) bootstrap.Modal.getOrCreateInstance(modal).show();
- }); document.addEventListener('submit', function (event) {
+ });
+
+ document.addEventListener('hidden.bs.modal', function () {
+     document.body.classList.remove('modal-open');
+     document.body.style.removeProperty('overflow');
+     document.body.style.removeProperty('padding-right');
+     document.querySelectorAll('.modal-backdrop').forEach(function (backdrop) { backdrop.remove(); });
+ });
+
+ document.addEventListener('submit', function (event) {
      const form = event.target.closest('[data-attendance-form]');
      if (!form) return;
+     event.preventDefault();
+
      const button = form.querySelector('button[type="submit"]');
-     if (!button || button.disabled) { event.preventDefault(); return; }
-     button.disabled = true;
+     if (!button || button.disabled) return;
+
+     const activeModal = form.closest('.modal');
      const spinner = button.querySelector('.spinner-border');
+     button.disabled = true;
      if (spinner) spinner.classList.remove('d-none');
+
+     fetch(form.action, {
+         method: form.method || 'POST',
+         body: new FormData(form),
+         headers: {
+             'X-Requested-With': 'XMLHttpRequest',
+             'Accept': 'application/json'
+         }
+     })
+         .then(function (response) { return response.json().then(function (json) { return {ok: response.ok, json: json}; }); })
+         .then(function (result) {
+             if (!result.ok || !result.json.success) throw new Error(result.json.message || 'Attendance request failed');
+             if (activeModal && window.bootstrap) bootstrap.Modal.getOrCreateInstance(activeModal).hide();
+             return loadAttendanceWidget();
+         })
+         .catch(function (error) {
+             alert(error.message || 'Unable to update attendance. Please try again.');
+         })
+         .finally(function () {
+             button.disabled = false;
+             if (spinner) spinner.classList.add('d-none');
+         });
  });
  </script> </body>
 
  </html>
+

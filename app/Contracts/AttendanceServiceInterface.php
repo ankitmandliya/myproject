@@ -26,6 +26,9 @@ interface AttendanceServiceInterface
     /** Get prepared monthly calendar data. */
     public function getMonthlyCalendar(int $month, int $year, ?int $userId = null): array;
 
+    /** Auto-finalize previous open attendance records for a user. */
+    public function autoFinalizeOpenAttendance(int $userId): int;
+
     /** Get the complete authenticated-user header attendance view model. */
     public function getTodayAttendanceWidget(int $userId): array;
 
@@ -83,3 +86,4 @@ interface AttendanceServiceInterface
     /** Delete an attendance record. */
     public function deleteAttendance(int $attendanceId): bool;
 }
+
