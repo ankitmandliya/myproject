@@ -159,6 +159,45 @@ $("#lineChart3").sparkline([105, 103, 123, 100, 95, 105, 115], {
         $("#basic-datatables").DataTable({});
     });
  </script> -->
+ @auth
+ <div class="modal fade" id="attendanceCheckInModal" tabindex="-1" aria-labelledby="attendanceCheckInModalLabel" aria-hidden="true">
+     <div class="modal-dialog modal-dialog-centered">
+         <div class="modal-content">
+             <div class="modal-header">
+                 <h5 class="modal-title" id="attendanceCheckInModalLabel">Mark today's attendance?</h5>
+                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+             </div>
+             <div class="modal-body">Your check-in time will be recorded for today.</div>
+             <div class="modal-footer">
+                 <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+                 <form action="{{ route('hrms.attendance.check-in') }}" method="POST" data-attendance-form>
+                     @csrf
+                     <button type="submit" class="btn btn-success"><span class="spinner-border spinner-border-sm d-none" aria-hidden="true"></span> Confirm Check In</button>
+                 </form>
+             </div>
+         </div>
+     </div>
+ </div>
+
+ <div class="modal fade" id="attendanceCheckoutModal" tabindex="-1" aria-labelledby="attendanceCheckoutModalLabel" aria-hidden="true">
+     <div class="modal-dialog modal-dialog-centered">
+         <div class="modal-content">
+             <div class="modal-header">
+                 <h5 class="modal-title" id="attendanceCheckoutModalLabel">Are you sure you want to check out?</h5>
+                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+             </div>
+             <div class="modal-body">You cannot check in again today.</div>
+             <div class="modal-footer">
+                 <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+                 <form action="{{ route('hrms.attendance.check-out') }}" method="POST" data-attendance-form>
+                     @csrf
+                     <button type="submit" class="btn btn-warning"><span class="spinner-border spinner-border-sm d-none" aria-hidden="true"></span> Confirm Check Out</button>
+                 </form>
+             </div>
+         </div>
+     </div>
+ </div>
+ @endauth
  <script>
  document.addEventListener('DOMContentLoaded', function () {
      loadAttendanceWidget();
@@ -166,6 +205,14 @@ $("#lineChart3").sparkline([105, 103, 123, 100, 95, 105, 115], {
 
  function attendanceWidgetTarget() {
      return document.getElementById('attendance-widget-live') || document.getElementById('attendance-widget-container');
+ }
+
+ function disposeAttendanceWidget(target) {
+     if (!target || !window.bootstrap) return;
+     target.querySelectorAll('[data-bs-toggle="dropdown"]').forEach(function (trigger) {
+         const dropdown = bootstrap.Dropdown.getInstance(trigger);
+         if (dropdown) dropdown.dispose();
+     });
  }
 
  function loadAttendanceWidget() {
@@ -178,6 +225,7 @@ $("#lineChart3").sparkline([105, 103, 123, 100, 95, 105, 115], {
              return response.text();
          })
          .then(function (html) {
+             disposeAttendanceWidget(target);
              target.insertAdjacentHTML('beforebegin', html);
              target.remove();
          })
@@ -186,19 +234,35 @@ $("#lineChart3").sparkline([105, 103, 123, 100, 95, 105, 115], {
          });
  }
 
+ function closeAttendanceDropdown(toggle) {
+     if (!toggle || !window.bootstrap) return Promise.resolve();
+     const dropdownRoot = toggle.closest('.dropdown');
+     const trigger = dropdownRoot ? dropdownRoot.querySelector('[data-bs-toggle="dropdown"]') : null;
+     if (!dropdownRoot || !trigger) return Promise.resolve();
+
+     const dropdown = bootstrap.Dropdown.getOrCreateInstance(trigger);
+     if (!dropdownRoot.classList.contains('show') && !dropdownRoot.querySelector('.dropdown-menu.show')) {
+         return Promise.resolve();
+     }
+
+     return new Promise(function (resolve) {
+         dropdownRoot.addEventListener('hidden.bs.dropdown', resolve, {once: true});
+         dropdown.hide();
+         window.setTimeout(resolve, 180);
+     });
+ }
+
  document.addEventListener('click', function (event) {
      const toggle = event.target.closest('[data-attendance-toggle]');
      if (!toggle) return;
      event.preventDefault();
-     const modal = document.querySelector(toggle.dataset.confirmTarget);
-     if (modal) bootstrap.Modal.getOrCreateInstance(modal).show();
- });
 
- document.addEventListener('hidden.bs.modal', function () {
-     document.body.classList.remove('modal-open');
-     document.body.style.removeProperty('overflow');
-     document.body.style.removeProperty('padding-right');
-     document.querySelectorAll('.modal-backdrop').forEach(function (backdrop) { backdrop.remove(); });
+     const modal = document.querySelector(toggle.dataset.confirmTarget);
+     if (!modal || !window.bootstrap) return;
+
+     closeAttendanceDropdown(toggle).then(function () {
+         bootstrap.Modal.getOrCreateInstance(modal).show();
+     });
  });
 
  document.addEventListener('submit', function (event) {
@@ -222,7 +286,11 @@ $("#lineChart3").sparkline([105, 103, 123, 100, 95, 105, 115], {
              'Accept': 'application/json'
          }
      })
-         .then(function (response) { return response.json().then(function (json) { return {ok: response.ok, json: json}; }); })
+         .then(function (response) {
+             return response.json().then(function (json) {
+                 return {ok: response.ok, json: json};
+             });
+         })
          .then(function (result) {
              if (!result.ok || !result.json.success) throw new Error(result.json.message || 'Attendance request failed');
              if (activeModal && window.bootstrap) bootstrap.Modal.getOrCreateInstance(activeModal).hide();
@@ -239,4 +307,5 @@ $("#lineChart3").sparkline([105, 103, 123, 100, 95, 105, 115], {
  </script> </body>
 
  </html>
+
 

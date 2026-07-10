@@ -339,3 +339,15 @@ Legacy Modules: Holiday and LeaveType were implemented before the standardized H
 - Bootstrap modal lifecycle corrected: Modal state cleanup restores `modal-open`, body overflow/padding, and leftover `.modal-backdrop` only through Bootstrap modal events.
 - Browser verification completed: CLI verification confirmed app timezone `Asia/Kolkata`, current time `IST`, AJAX check-in/check-out JSON responses, widget state refresh, no render errors, and no runtime raw time calls. Interactive browser clicking was not available from CLI.
 - Verification commands passed: `optimize:clear`, `optimize`, `config:clear`, `config:cache`, `view:cache`, `route:list`, `about`, targeted timezone/AJAX smoke checks, and full app PHP lint all passed.
+
+- Task completed: Fixed the HRMS Attendance widget Bootstrap modal lifecycle from `mdfiles/10E7_hrms_attendance_widget_bootstrap_modal_fix.md`.
+- Attendance widget architecture cleaned: Header widget now contains only the attendance icon, dropdown information, badge, and toggle switch.
+- Attendance modals moved outside header widget: Check-in and checkout Bootstrap modal HTML is rendered once from the main footer layout, preventing duplicate modal instances during widget refresh.
+- Bootstrap modal lifecycle corrected: JavaScript now uses Bootstrap's Modal API only and no longer manually removes `.modal-backdrop`, `modal-open`, body overflow, padding, or `show` classes.
+- Dropdown lifecycle corrected: The active attendance dropdown is closed through Bootstrap's Dropdown API before the confirmation modal opens.
+- Widget refresh stabilized: Existing Bootstrap dropdown instances are disposed before replacing the AJAX-loaded widget DOM, preventing stale Bootstrap references.
+- AJAX attendance flow verified: Check-in and checkout forms still submit through the existing AJAX endpoints, prevent duplicate submissions, show spinner state, close the modal on success, and refresh the widget without a full page reload.
+- Confirm button interaction fixed: Confirm buttons are now outside the replaced widget DOM, remain clickable when modals open, and re-enable after success or failure.
+- Duplicate Bootstrap instances eliminated: Render verification confirmed exactly one check-in modal and one checkout modal in the page, and no modal HTML inside the widget partial.
+- Browser verification completed: CLI verification covered modal placement, AJAX success, widget dropdown presence, prohibited manual Bootstrap cleanup removal, Blade compilation, and no render errors. Interactive browser console checks were not available from CLI.
+- Verification commands passed: `optimize:clear`, `optimize`, `view:clear`, `view:cache`, rollback-only AJAX smoke checks, render modal-count checks, and full app PHP lint all passed.
