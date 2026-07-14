@@ -18,12 +18,24 @@ class LeaveType extends Model
         'leave_name',
         'leave_code',
         'total_days',
+        'annual_allocation',
+        'monthly_allocation',
+        'carry_forward_enabled',
+        'sandwich_applicable',
+        'half_day_allowed',
+        'requires_approval',
         'is_paid',
         'status',
     ];
 
     protected $casts = [
         'total_days' => 'integer',
+        'annual_allocation' => 'decimal:2',
+        'monthly_allocation' => 'decimal:2',
+        'carry_forward_enabled' => 'boolean',
+        'sandwich_applicable' => 'boolean',
+        'half_day_allowed' => 'boolean',
+        'requires_approval' => 'boolean',
         'is_paid' => 'boolean',
         'status' => 'boolean',
     ];
@@ -31,6 +43,11 @@ class LeaveType extends Model
     public function leaveApplications(): HasMany
     {
         return $this->hasMany(LeaveApply::class);
+    }
+
+    public function employeeLeaveBalances(): HasMany
+    {
+        return $this->hasMany(EmployeeLeaveBalance::class);
     }
 
     public function scopeActive($query)

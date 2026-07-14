@@ -6,6 +6,9 @@
     $fullName = trim(($detail?->first_name ?? '') . ' ' . ($detail?->last_name ?? '')) ?: $user->name;
     $isActive = (bool) ($detail?->status ?? false);
     $roleNames = $user->roles->pluck('role_name')->join(', ') ?: '-';
+    $manager = $detail?->reportingManager;
+    $managerDetail = $manager?->userDetail;
+    $managerName = $manager ? (trim(($managerDetail?->first_name ?? '') . ' ' . ($managerDetail?->last_name ?? '')) ?: $manager->name) : '-';
     $latestSalary = $salarySummary['latest_salary'] ?? null;
     $defaultPhoto = 'assets/img/profile.jpg';
     $photoPath = trim((string) ($detail?->profile_photo ?? ''));
@@ -49,6 +52,7 @@
                             <div class="name">{{ $fullName }}</div>
                             <div class="job">{{ $detail?->designation ?? '-' }}</div>
                             <div class="desc">{{ $detail?->department ?? '-' }}</div>
+                            <div class="desc mt-2"><strong>Reporting Manager</strong><br>{{ $managerName }}</div>
                             <span class="badge {{ $isActive ? 'badge-success' : 'badge-secondary' }} mt-2">
                                 {{ $isActive ? 'Active' : 'Inactive' }}
                             </span>
@@ -100,6 +104,14 @@
                             <div class="col-md-6 mb-3"><strong>Department:</strong><br>{{ $detail?->department ?? '-' }}</div>
                             <div class="col-md-6 mb-3"><strong>Designation:</strong><br>{{ $detail?->designation ?? '-' }}</div>
                             <div class="col-md-6 mb-3"><strong>Joining Date:</strong><br>{{ $detail?->joining_date ?? '-' }}</div>
+                            <div class="col-md-6 mb-3"><strong>Reporting Manager:</strong><br>
+                                @if($manager)
+                                    <a href="{{ route('hrms.users.show', $manager->id) }}">{{ $managerName }}</a><br>
+                                    <small class="text-muted">{{ $managerDetail?->emp_code ?? '-' }} · {{ $managerDetail?->department ?? '-' }}</small>
+                                @else
+                                    -
+                                @endif
+                            </div>
                             <div class="col-md-6 mb-3"><strong>Basic Salary:</strong><br>{{ $detail?->basic_salary ?? '-' }}</div>
                         </div>
                     </div>

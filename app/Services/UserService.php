@@ -6,14 +6,18 @@ namespace App\Services;
 
 use App\Contracts\Common\FileUploadServiceInterface;
 use App\Contracts\CompanySettingServiceInterface;
+use App\Contracts\LeavePolicyServiceInterface;
+use App\Contracts\NotificationServiceInterface;
 use App\Contracts\RolePermissionServiceInterface;
 use App\Contracts\UserServiceInterface;
+use App\Models\ReportingManagerAudit;
 use App\Models\RoleMaster;
 use App\Models\User;
 use App\Models\UserDetail;
 use App\Models\UserRole;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -33,7 +37,10 @@ class UserService implements UserServiceInterface
         protected RoleMaster $roleMaster,
         protected RolePermissionServiceInterface $rolePermissionService,
         protected CompanySettingServiceInterface $companySettingService,
-        protected FileUploadServiceInterface $fileUploadService
+        protected FileUploadServiceInterface $fileUploadService,
+        protected LeavePolicyServiceInterface $leavePolicyService,
+        protected NotificationServiceInterface $notificationService,
+        protected ReportingManagerAudit $reportingManagerAudit
     ) {
     }
 
@@ -71,7 +78,7 @@ class UserService implements UserServiceInterface
     public function getAllUsers(int $perPage = 10): LengthAwarePaginator
     {
         return $this->user
-            ->with(['userDetail', 'roles'])
+            ->with(['userDetail.reportingManager.userDetail', 'roles'])
             ->latest()
             ->paginate($perPage);
     }
@@ -81,7 +88,7 @@ class UserService implements UserServiceInterface
     {
         $perPage = in_array($perPage, [10, 25, 50, 100], true) ? $perPage : 10;
 
-        $query = $this->user->with(['userDetail', 'roles']);
+        $query = $this->user->with(['userDetail.reportingManager.userDetail', 'roles']);
 
         $name = trim((string) ($filters['name'] ?? ''));
         if ($name !== '') {
@@ -90,7 +97,17 @@ class UserService implements UserServiceInterface
                     ->orWhere('email', 'like', "%{$name}%")
                     ->orWhereHas('userDetail', function ($detailQuery) use ($name): void {
                         $detailQuery->where('first_name', 'like', "%{$name}%")
-                            ->orWhere('last_name', 'like', "%{$name}%");
+                            ->orWhere('last_name', 'like', "%{$name}%")
+                            ->orWhere('department', 'like', "%{$name}%")
+                            ->orWhere('designation', 'like', "%{$name}%")
+                            ->orWhereHas('reportingManager', function ($managerQuery) use ($name): void {
+                                $managerQuery->where('name', 'like', "%{$name}%")
+                                    ->orWhereHas('userDetail', function ($managerDetailQuery) use ($name): void {
+                                        $managerDetailQuery->where('first_name', 'like', "%{$name}%")
+                                            ->orWhere('last_name', 'like', "%{$name}%")
+                                            ->orWhere('emp_code', 'like', "%{$name}%");
+                                    });
+                            });
                     });
             });
         }
@@ -127,14 +144,44 @@ class UserService implements UserServiceInterface
             $query->whereHas('userDetail', fn ($detailQuery) => $detailQuery->where('status', (bool) $filters['status']));
         }
 
-        return $query->latest()->paginate($perPage)->withQueryString();
+        $reportingManagerId = (string) ($filters['reporting_manager_id'] ?? '');
+        if ($reportingManagerId === 'none') {
+            $query->whereHas('userDetail', fn ($detailQuery) => $detailQuery->whereNull('reporting_manager_id'));
+        } elseif (ctype_digit($reportingManagerId)) {
+            $query->whereHas('userDetail', fn ($detailQuery) => $detailQuery->where('reporting_manager_id', (int) $reportingManagerId));
+        }
+
+        if (($filters['manager_scope'] ?? null) !== null) {
+            $query->whereHas('userDetail', fn ($detailQuery) => $detailQuery->where('reporting_manager_id', (int) $filters['manager_scope']));
+        }
+
+        if (($filters['employee_scope'] ?? null) !== null) {
+            $query->whereKey((int) $filters['employee_scope']);
+        }
+
+        $sort = (string) ($filters['sort'] ?? 'latest');
+        if ($sort === 'employee') {
+            $query->join('user_details as sort_details', 'sort_details.user_id', '=', 'users.id')
+                ->orderBy('sort_details.first_name')
+                ->orderBy('sort_details.last_name')
+                ->select('users.*');
+        } elseif ($sort === 'reporting_manager') {
+            $query->leftJoin('user_details as employee_details', 'employee_details.user_id', '=', 'users.id')
+                ->leftJoin('users as managers', 'managers.id', '=', 'employee_details.reporting_manager_id')
+                ->orderBy('managers.name')
+                ->select('users.*');
+        } else {
+            $query->latest('users.created_at');
+        }
+
+        return $query->paginate($perPage)->withQueryString();
     }
     /** Return a complete employee profile by user ID. */
     public function getUserById(int $id): User
     {
         $this->validatePositiveId($id, 'User ID');
 
-        $user = $this->user->with(['userDetail', 'roles'])->find($id);
+        $user = $this->user->with(['userDetail.reportingManager.userDetail', 'roles'])->find($id);
 
         if (! $user instanceof User) {
             throw new RuntimeException("User [{$id}] was not found.");
@@ -161,8 +208,10 @@ class UserService implements UserServiceInterface
         }
 
         $data = $this->prepareProfilePhotoUpload($data);
+        $newManagerId = $this->normalizeNullableId($data['reporting_manager_id'] ?? null);
+        $this->assertReportingManagerExists($newManagerId);
 
-        return DB::transaction(function () use ($data): User {
+        $createdUser = DB::transaction(function () use ($data): User {
             $user = $this->user->create($this->userPayload($data, true));
 
             $user->userDetail()->create($this->userDetailPayload($data));
@@ -173,8 +222,14 @@ class UserService implements UserServiceInterface
                 $this->syncRoles($user->id, $roleIds);
             }
 
+            $this->leavePolicyService->allocateEmployee((int) $user->id);
+
             return $this->getUserById($user->id);
         });
+
+        $this->recordReportingManagerChange($createdUser, null, $newManagerId);
+
+        return $createdUser;
     }
 
     /** Update an employee user and profile. */
@@ -191,10 +246,18 @@ class UserService implements UserServiceInterface
         }
 
         $oldProfilePhoto = (string) ($user->userDetail?->profile_photo ?? '');
+        $oldManagerId = $this->normalizeNullableId($user->userDetail?->reporting_manager_id);
         $data = $this->prepareProfilePhotoUpload($data);
         $newProfilePhoto = $data['profile_photo'] ?? null;
+        $newManagerId = array_key_exists('reporting_manager_id', $data)
+            ? $this->normalizeNullableId($data['reporting_manager_id'])
+            : $oldManagerId;
 
-        $updatedUser = DB::transaction(function () use ($user, $data): User {
+        $this->assertValidReportingManager((int) $user->id, $newManagerId);
+
+        $shouldRecalculateLeaveBalance = array_key_exists('joining_date', $data) || array_key_exists('status', $data);
+
+        $updatedUser = DB::transaction(function () use ($user, $data, $shouldRecalculateLeaveBalance): User {
             $userPayload = $this->userPayload($data, false);
 
             if ($userPayload !== []) {
@@ -214,12 +277,18 @@ class UserService implements UserServiceInterface
                 $this->syncRoles($user->id, $this->extractRoleIds($data));
             }
 
+            if ($shouldRecalculateLeaveBalance) {
+                $this->leavePolicyService->allocateEmployee((int) $user->id, null, true);
+            }
+
             return $this->getUserById($user->id);
         });
 
         if (is_string($newProfilePhoto)) {
             $this->deleteReplacedProfilePhoto($oldProfilePhoto, $newProfilePhoto);
         }
+
+        $this->recordReportingManagerChange($updatedUser, $oldManagerId, $newManagerId);
 
         return $updatedUser;
     }
@@ -310,7 +379,7 @@ class UserService implements UserServiceInterface
         }
 
         return $this->user
-            ->with(['userDetail', 'roles'])
+            ->with(['userDetail.reportingManager.userDetail', 'roles'])
             ->where('email', 'like', "%{$keyword}%")
             ->orWhereHas('userDetail', function ($query) use ($keyword): void {
                 $query->where('first_name', 'like', "%{$keyword}%")
@@ -325,7 +394,7 @@ class UserService implements UserServiceInterface
     public function getActiveUsers(): Collection
     {
         return $this->user
-            ->with(['userDetail', 'roles'])
+            ->with(['userDetail.reportingManager.userDetail', 'roles'])
             ->whereHas('userDetail', fn ($query) => $query->active())
             ->latest()
             ->get();
@@ -335,7 +404,7 @@ class UserService implements UserServiceInterface
     public function getInactiveUsers(): Collection
     {
         return $this->user
-            ->with(['userDetail', 'roles'])
+            ->with(['userDetail.reportingManager.userDetail', 'roles'])
             ->whereHas('userDetail', fn ($query) => $query->where('status', 0))
             ->latest()
             ->get();
@@ -355,10 +424,40 @@ class UserService implements UserServiceInterface
         }
 
         return $this->user
-            ->with(['userDetail', 'roles'])
+            ->with(['userDetail.reportingManager.userDetail', 'roles'])
             ->whereHas('roles', fn ($query) => $query->where('role_name', $role))
             ->latest()
             ->get();
+    }
+
+    /** Return active users available for reporting manager assignment. */
+    public function getReportingManagers(?int $excludeUserId = null): Collection
+    {
+        $query = $this->user
+            ->with(['userDetail.reportingManager.userDetail', 'roles'])
+            ->whereHas('userDetail', fn (Builder $query): Builder => $query->active());
+
+        if ($excludeUserId !== null && $excludeUserId > 0) {
+            $query->whereKeyNot($excludeUserId);
+        }
+
+        return $query->orderBy('name')->get();
+    }
+
+    /** Return employees without an assigned reporting manager. */
+    public function getEmployeesWithoutReportingManagerCount(): int
+    {
+        return (int) $this->userDetail
+            ->newQuery()
+            ->active()
+            ->whereNull('reporting_manager_id')
+            ->count();
+    }
+
+    /** Return reporting hierarchy rows for the report page. */
+    public function getReportingHierarchyReport(array $filters = [], int $perPage = 25): LengthAwarePaginator
+    {
+        return $this->getFilteredUsers($filters, $perPage);
     }
 
     /** Determine whether a user exists. */
@@ -485,6 +584,7 @@ class UserService implements UserServiceInterface
             'pan',
             'profile_photo',
             'status',
+            'reporting_manager_id',
         ];
 
         $payload = [];
@@ -545,6 +645,117 @@ class UserService implements UserServiceInterface
         return $role;
     }
 
+
+
+    /** Ensure the selected reporting manager is valid and cannot create a loop. */
+    protected function assertValidReportingManager(int $employeeId, ?int $managerId): void
+    {
+        if ($managerId === null) {
+            return;
+        }
+
+        if ($employeeId === $managerId) {
+            throw new RuntimeException('Employee cannot report to themselves.');
+        }
+
+        $this->assertReportingManagerExists($managerId);
+
+        $visited = [];
+        $currentManagerId = $managerId;
+
+        while ($currentManagerId !== null) {
+            if ($currentManagerId === $employeeId || in_array($currentManagerId, $visited, true)) {
+                throw new RuntimeException('Circular reporting hierarchy is not allowed.');
+            }
+
+            $visited[] = $currentManagerId;
+            $currentManagerId = $this->normalizeNullableId(
+                $this->userDetail->newQuery()->where('user_id', $currentManagerId)->value('reporting_manager_id')
+            );
+        }
+    }
+
+    /** Ensure a selected manager exists and is active. */
+    protected function assertReportingManagerExists(?int $managerId): void
+    {
+        if ($managerId === null) {
+            return;
+        }
+
+        $exists = $this->user
+            ->newQuery()
+            ->whereKey($managerId)
+            ->whereHas('userDetail', fn (Builder $query): Builder => $query->active())
+            ->exists();
+
+        if (! $exists) {
+            throw new RuntimeException('Selected reporting manager is not available.');
+        }
+    }
+
+    /** Persist audit and send notifications when manager assignment changes. */
+    protected function recordReportingManagerChange(User $employee, ?int $oldManagerId, ?int $newManagerId): void
+    {
+        if ($oldManagerId === $newManagerId) {
+            return;
+        }
+
+        $action = $oldManagerId === null
+            ? 'Reporting Manager Assigned'
+            : ($newManagerId === null ? 'Reporting Manager Removed' : 'Reporting Manager Changed');
+
+        $this->reportingManagerAudit->newQuery()->create([
+            'employee_id' => $employee->id,
+            'old_manager_id' => $oldManagerId,
+            'new_manager_id' => $newManagerId,
+            'changed_by' => auth()->id(),
+            'action' => $action,
+            'ip_address' => request()?->ip(),
+            'changed_at' => now(),
+        ]);
+
+        $manager = $newManagerId !== null ? $this->getUserById($newManagerId) : null;
+        $managerName = $manager?->name ?? 'None';
+
+        $this->notificationService->sendToUsers([$employee], [
+            'type' => NotificationService::TYPE_INFORMATION,
+            'title' => 'Reporting Manager Updated',
+            'message' => "Your Reporting Manager has been updated. Reporting Manager: {$managerName}",
+            'url' => route('hrms.users.show', $employee->id),
+            'reference_id' => $employee->id,
+            'reference_type' => 'employee_reporting_manager',
+        ]);
+
+        if ($manager instanceof User) {
+            $employeeName = $employee->userDetail
+                ? trim((string) $employee->userDetail->first_name . ' ' . (string) $employee->userDetail->last_name)
+                : '';
+            $employeeName = $employeeName !== '' ? $employeeName : $employee->name;
+
+            $this->notificationService->sendToUsers([$manager], [
+                'type' => NotificationService::TYPE_INFORMATION,
+                'title' => 'New Reporting Employee',
+                'message' => "A new employee now reports to you. Employee: {$employeeName}",
+                'url' => route('hrms.users.show', $employee->id),
+                'reference_id' => $employee->id,
+                'reference_type' => 'employee_reporting_manager',
+            ]);
+        }
+    }
+
+    /** Normalize optional foreign keys from form data. */
+    protected function normalizeNullableId(mixed $value): ?int
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        $id = (int) $value;
+
+        return $id > 0 ? $id : null;
+    }
+
+
     /** Validate a positive integer ID. */
     protected function validatePositiveId(int $id, string $label): void
     {
@@ -561,4 +772,3 @@ class UserService implements UserServiceInterface
         }
     }
 }
-

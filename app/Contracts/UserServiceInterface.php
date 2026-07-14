@@ -73,6 +73,15 @@ interface UserServiceInterface
     /** Get employees by role name. */
     public function getEmployeesByRole(string $role): Collection;
 
+    /** Return active users available for reporting manager assignment. */
+    public function getReportingManagers(?int $excludeUserId = null): Collection;
+
+    /** Return employees without an assigned reporting manager. */
+    public function getEmployeesWithoutReportingManagerCount(): int;
+
+    /** Return reporting hierarchy rows for the report page. */
+    public function getReportingHierarchyReport(array $filters = [], int $perPage = 25): LengthAwarePaginator;
+
     /** Determine whether a user exists. */
     public function userExists(int $id): bool;
 

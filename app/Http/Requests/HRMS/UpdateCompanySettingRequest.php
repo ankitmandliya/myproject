@@ -33,6 +33,9 @@ class UpdateCompanySettingRequest extends FormRequest
             'half_day_after_minutes' => ['required', 'integer', 'min:0'],
             'salary_date' => ['required', 'integer', 'min:1', 'max:31'],
             'weekly_off' => ['required', 'string', 'max:50'],
+            'leave_auto_approval' => ['nullable', 'boolean'],
+            'leave_approval_levels' => ['nullable', 'array'],
+            'leave_approval_levels.*' => ['string', 'in:manager,hr,admin'],
         ];
     }
 
@@ -65,6 +68,10 @@ class UpdateCompanySettingRequest extends FormRequest
             'half_day_after_minutes' => 'Half Day After Minutes',
             'salary_date' => 'Salary Date',
             'weekly_off' => 'Weekly Off',
+            'leave_auto_approval' => 'Leave Auto Approval',
+            'leave_approval_levels' => 'Leave Approval Levels',
         ];
     }
 }
+
+

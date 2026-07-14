@@ -39,6 +39,7 @@
                                     <th>Late</th>
                                     <th>Half Day</th>
                                     <th>Leave</th>
+                                    <th>LWP</th>
                                     <th>Holiday</th>
                                     <th>Weekly Off</th>
                                     <th>Absent</th>
@@ -65,6 +66,7 @@
                                         <td>{{ $row['late'] }}</td>
                                         <td>{{ $row['half_day'] }}</td>
                                         <td>{{ $row['leave'] }}</td>
+                                        <td>{{ $row['lwp'] ?? 0 }}</td>
                                         <td>{{ $row['holiday'] }}</td>
                                         <td>{{ $row['weekly_off'] }}</td>
                                         <td>{{ $row['absent'] }}</td>

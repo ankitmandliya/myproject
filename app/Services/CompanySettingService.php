@@ -141,6 +141,12 @@ class CompanySettingService implements CompanySettingServiceInterface
             'half_day_after_minutes',
             'salary_date',
             'weekly_off',
+            'leave_auto_approval',
+            'leave_approval_levels',
+            'enable_notifications',
+            'enable_leave_reminders',
+            'enable_approval_reminders',
+            'enable_low_balance_alerts',
         ];
 
         return array_intersect_key($data, array_flip($allowedFields));
@@ -183,6 +189,7 @@ class CompanySettingService implements CompanySettingServiceInterface
         }
 
         $this->validateWeeklyOff($data['weekly_off'] ?? null);
+        $this->validateApprovalLevels($data['leave_approval_levels'] ?? []);
     }
 
     /**
@@ -232,4 +239,29 @@ class CompanySettingService implements CompanySettingServiceInterface
             throw new InvalidArgumentException('Weekly off must be a valid weekday.');
         }
     }
+    /** Validate configured leave approval levels. */
+    protected function validateApprovalLevels(mixed $levels): void
+    {
+        if ($levels === null || $levels === '' || $levels === []) {
+            return;
+        }
+
+        if (is_string($levels)) {
+            $decoded = json_decode($levels, true);
+            $levels = is_array($decoded) ? $decoded : preg_split('/\s*,\s*/', $levels, -1, PREG_SPLIT_NO_EMPTY);
+        }
+
+        if (! is_array($levels)) {
+            throw new InvalidArgumentException('Leave approval levels must be a list.');
+        }
+
+        $allowed = ['manager', 'hr', 'admin'];
+        foreach ($levels as $level) {
+            if (! is_string($level) || ! in_array(strtolower(trim($level)), $allowed, true)) {
+                throw new InvalidArgumentException('Leave approval levels may only contain manager, hr, and admin.');
+            }
+        }
+    }
 }
+
+

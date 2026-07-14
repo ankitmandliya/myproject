@@ -16,7 +16,7 @@
         <form action="{{ route('hrms.users.update', $user->id) }}" method="POST" enctype="multipart/form-data">
             @csrf
             @method('PUT')
-            @include('Adminpanel.HRMS.Employees._partials.form', ['user' => $user, 'roles' => $roles, 'isEdit' => true])
+            @include('Adminpanel.HRMS.Employees._partials.form', ['user' => $user, 'roles' => $roles, 'reportingManagers' => $reportingManagers, 'isEdit' => true])
         </form>
     </div>
 </div>

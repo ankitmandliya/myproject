@@ -13,9 +13,9 @@
                 ]])
             </div>
             <div class="ms-md-auto py-2 py-md-0">
-                <button type="button" class="btn btn-label-info btn-round me-2" disabled>
-                    <i class="fas fa-file-excel me-1"></i> Export Excel
-                </button>
+                <a href="{{ route('hrms.reporting-hierarchy.index') }}" class="btn btn-label-info btn-round me-2">
+                    <i class="fas fa-sitemap me-1"></i> Reporting Hierarchy
+                </a>
                 <a href="{{ route('hrms.users.create') }}" class="btn btn-primary btn-round">
                     <i class="fas fa-plus me-1"></i> Add Employee
                 </a>
@@ -55,6 +55,22 @@
                         </div>
                         <div class="col-md-3">
                             <div class="form-group">
+                                <label for="reporting_manager_id">Reporting Manager</label>
+                                <select name="reporting_manager_id" id="reporting_manager_id" class="form-control">
+                                    <option value="">All Managers</option>
+                                    <option value="none" @selected((string) ($filters['reporting_manager_id'] ?? '') === 'none')>No Manager</option>
+                                    @foreach($reportingManagers as $manager)
+                                        @php
+                                            $managerDetail = $manager->userDetail;
+                                            $managerName = trim(($managerDetail?->first_name ?? '') . ' ' . ($managerDetail?->last_name ?? '')) ?: $manager->name;
+                                        @endphp
+                                        <option value="{{ $manager->id }}" @selected((string) ($filters['reporting_manager_id'] ?? '') === (string) $manager->id)>{{ $managerName }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="form-group">
                                 <label for="role">Role</label>
                                 <select name="role" id="role" class="form-control">
                                     <option value="">All Roles</option>
@@ -71,6 +87,16 @@
                                     <option value="">All Statuses</option>
                                     <option value="1" @selected((string) ($filters['status'] ?? '') === '1')>Active</option>
                                     <option value="0" @selected((string) ($filters['status'] ?? '') === '0')>Inactive</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="form-group">
+                                <label for="sort">Sort By</label>
+                                <select name="sort" id="sort" class="form-control">
+                                    <option value="latest" @selected((string) ($filters['sort'] ?? '') === 'latest')>Latest</option>
+                                    <option value="employee" @selected((string) ($filters['sort'] ?? '') === 'employee')>Employee</option>
+                                    <option value="reporting_manager" @selected((string) ($filters['sort'] ?? '') === 'reporting_manager')>Reporting Manager</option>
                                 </select>
                             </div>
                         </div>
@@ -113,6 +139,7 @@
                                     <th>Email</th>
                                     <th>Department</th>
                                     <th>Designation</th>
+                                    <th>Reporting Manager</th>
                                     <th>Role</th>
                                     <th>Status</th>
                                     <th>Joining Date</th>
@@ -125,6 +152,9 @@
                                         $detail = $employee->userDetail;
                                         $fullName = trim(($detail?->first_name ?? '') . ' ' . ($detail?->last_name ?? '')) ?: $employee->name;
                                         $isActive = (bool) ($detail?->status ?? false);
+                                        $manager = $detail?->reportingManager;
+                                        $managerDetail = $manager?->userDetail;
+                                        $managerName = $manager ? (trim(($managerDetail?->first_name ?? '') . ' ' . ($managerDetail?->last_name ?? '')) ?: $manager->name) : '-';
                                         $defaultPhoto = 'assets/img/profile.jpg';
                                         $photoPath = trim((string) ($detail?->profile_photo ?? ''));
                                         $photoUrl = $photoPath !== '' && file_exists(public_path($photoPath))
@@ -140,6 +170,13 @@
                                         <td>{{ $employee->email }}</td>
                                         <td>{{ $detail?->department ?? '-' }}</td>
                                         <td>{{ $detail?->designation ?? '-' }}</td>
+                                        <td>
+                                            @if($manager)
+                                                <a href="{{ route('hrms.users.show', $manager->id) }}">{{ $managerName }}</a>
+                                            @else
+                                                -
+                                            @endif
+                                        </td>
                                         <td>{{ $employee->roles->pluck('role_name')->join(', ') ?: '-' }}</td>
                                         <td>
                                             <span class="badge {{ $isActive ? 'badge-success' : 'badge-secondary' }}">

@@ -15,11 +15,6 @@ class User extends Authenticatable
 {
     use HasApiTokens, HasFactory, Notifiable;
 
-    /**
-     * The attributes that are mass assignable.
-     *
-     * @var array<int, string>
-     */
     protected $table = 'users';
 
     protected $fillable = [
@@ -30,21 +25,11 @@ class User extends Authenticatable
         'otp',
     ];
 
-    /**
-     * The attributes that should be hidden for serialization.
-     *
-     * @var array<int, string>
-     */
     protected $hidden = [
         'password',
         'remember_token',
     ];
 
-    /**
-     * The attributes that should be cast.
-     *
-     * @var array<string, string>
-     */
     protected $casts = [
         'password' => 'hashed',
         'email_verified_at' => 'datetime',
@@ -71,6 +56,11 @@ class User extends Authenticatable
     public function salarySlips(): HasMany
     {
         return $this->hasMany(SalarySlip::class);
+    }
+
+    public function leaveBalances(): HasMany
+    {
+        return $this->hasMany(EmployeeLeaveBalance::class, 'employee_id');
     }
 
     public function roles(): BelongsToMany

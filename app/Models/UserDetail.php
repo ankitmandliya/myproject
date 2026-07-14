@@ -14,6 +14,7 @@ class UserDetail extends Model
 
     protected $fillable = [
         'user_id',
+        'reporting_manager_id',
         'emp_code',
         'first_name',
         'last_name',
@@ -42,6 +43,11 @@ class UserDetail extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function reportingManager(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'reporting_manager_id');
     }
 
     public function scopeActive($query)

@@ -18,6 +18,18 @@
                 {{ $attendanceWidget['holidayName'] }} ({{ $attendanceWidget['holidayDate'] }})<br>
                 <small>Attendance is disabled today.</small>
             </div>
+        @elseif($attendanceWidget['isApprovedLeave'] && ! $attendanceWidget['canCheckIn'] && ! $attendanceWidget['canCheckOut'])
+            <div class="alert alert-primary py-2 mb-3" role="status">
+                <strong>{{ $attendanceWidget['leaveStatusLabel'] ?? 'Approved Leave' }}</strong><br>
+                <span>{{ $attendanceWidget['leaveType'] ?? 'Leave' }}</span>
+                @if(! empty($attendanceWidget['approvedBy']))
+                    <br><small>Approved by {{ $attendanceWidget['approvedBy'] }}</small>
+                @endif
+                @if(! empty($attendanceWidget['leaveReason']))
+                    <br><small class="text-break">{{ $attendanceWidget['leaveReason'] }}</small>
+                @endif
+                <br><small>{{ $attendanceWidget['attendanceMessage'] ?? 'Attendance not required today' }}</small>
+            </div>
         @elseif($attendanceWidget['isWeeklyOff'])
             <div class="alert alert-secondary py-2 mb-3" role="status">
                 Today is Weekly Off ({{ $attendanceWidget['weeklyOff'] }}).<br>
@@ -40,15 +52,18 @@
             <div>Current date and time: <strong>{{ $attendanceWidget['todayDate'] }} {{ $attendanceWidget['currentTime'] }}</strong></div>
         </div>
 
-        <div class="d-flex align-items-center justify-content-between gap-3 border-top pt-3">
-            <span class="fw-semibold">{{ $attendanceWidget['attendanceCompleted'] ? 'Attendance Completed' : ($attendanceWidget['canCheckOut'] ? 'ON' : 'OFF') }}</span>
-            <div class="d-flex align-items-center gap-2">
-                <span class="spinner-border spinner-border-sm d-none" id="attendanceToggleSpinner" aria-hidden="true"></span>
-                <div class="form-check form-switch m-0">
-                    <input class="form-check-input" type="checkbox" role="switch" aria-label="Toggle attendance" @checked($attendanceWidget['canCheckOut'] || $attendanceWidget['attendanceCompleted']) @disabled($attendanceWidget['attendanceCompleted'] || (! $attendanceWidget['canCheckIn'] && ! $attendanceWidget['canCheckOut'])) @if($attendanceWidget['canCheckIn']) data-attendance-toggle data-confirm-target="#attendanceCheckInModal" @elseif($attendanceWidget['canCheckOut']) data-attendance-toggle data-confirm-target="#attendanceCheckoutModal" @endif>
+        @if($attendanceWidget['isApprovedLeave'] && ! $attendanceWidget['canCheckIn'] && ! $attendanceWidget['canCheckOut'])
+            <div class="border-top pt-3 small fw-semibold text-muted">{{ $attendanceWidget['attendanceMessage'] ?? 'Attendance not required today' }}</div>
+        @else
+            <div class="d-flex align-items-center justify-content-between gap-3 border-top pt-3">
+                <span class="fw-semibold">{{ $attendanceWidget['attendanceCompleted'] ? 'Attendance Completed' : ($attendanceWidget['canCheckOut'] ? 'ON' : 'OFF') }}</span>
+                <div class="d-flex align-items-center gap-2">
+                    <span class="spinner-border spinner-border-sm d-none" id="attendanceToggleSpinner" aria-hidden="true"></span>
+                    <div class="form-check form-switch m-0">
+                        <input class="form-check-input" type="checkbox" role="switch" aria-label="Toggle attendance" @checked($attendanceWidget['canCheckOut'] || $attendanceWidget['attendanceCompleted']) @disabled($attendanceWidget['attendanceCompleted'] || (! $attendanceWidget['canCheckIn'] && ! $attendanceWidget['canCheckOut'])) @if($attendanceWidget['canCheckIn']) data-attendance-toggle data-confirm-target="#attendanceCheckInModal" @elseif($attendanceWidget['canCheckOut']) data-attendance-toggle data-confirm-target="#attendanceCheckoutModal" @endif>
+                    </div>
                 </div>
             </div>
-        </div>
+        @endif
     </div>
 </li>
-

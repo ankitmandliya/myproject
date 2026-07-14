@@ -7,7 +7,9 @@ namespace App\Services;
 use App\Contracts\AttendanceServiceInterface;
 use App\Contracts\CompanySettingServiceInterface;
 use App\Contracts\DashboardServiceInterface;
+use App\Contracts\LeavePolicyServiceInterface;
 use App\Contracts\LeaveServiceInterface;
+use App\Contracts\NotificationServiceInterface;
 use App\Contracts\SalaryServiceInterface;
 use App\Contracts\UserServiceInterface;
 use App\Models\Attendance;
@@ -29,8 +31,10 @@ class DashboardService implements DashboardServiceInterface
         protected UserServiceInterface $userService,
         protected AttendanceServiceInterface $attendanceService,
         protected LeaveServiceInterface $leaveService,
+        protected LeavePolicyServiceInterface $leavePolicyService,
         protected SalaryServiceInterface $salaryService,
         protected CompanySettingServiceInterface $companySettingService,
+        protected NotificationServiceInterface $notificationService,
         protected Attendance $attendance,
         protected LeaveApply $leaveApply,
         protected SalarySlip $salarySlip,
@@ -61,22 +65,24 @@ class DashboardService implements DashboardServiceInterface
             'total_employees' => $activeEmployees->count() + $inactiveEmployees->count(),
             'active_employees' => $activeEmployees->count(),
             'inactive_employees' => $inactiveEmployees->count(),
+            'employees_without_reporting_manager' => $this->userService->getEmployeesWithoutReportingManagerCount(),
         ];
     }
 
     /** Get attendance statistics for today. */
     public function getAttendanceStatistics(): array
     {
-        $records = $this->attendance
-            ->with('user.userDetail')
-            ->whereDate('attendance_date', Carbon::today()->toDateString())
-            ->get();
+        $summary = $this->attendanceService->getTodaySummary();
 
         return [
-            'present' => $records->where('status', 'Present')->count(),
-            'absent' => $records->where('status', 'Absent')->count(),
-            'late' => $records->filter(fn (Attendance $attendance): bool => (int) $attendance->late_minutes > 0)->count(),
-            'half_day' => $records->filter(fn (Attendance $attendance): bool => (bool) $attendance->half_day)->count(),
+            'present' => (int) ($summary['present'] ?? 0),
+            'absent' => (int) ($summary['absent'] ?? 0),
+            'late' => (int) ($summary['late'] ?? 0),
+            'half_day' => (int) ($summary['half_day'] ?? 0),
+            'leave' => (int) ($summary['leave'] ?? 0),
+            'lwp' => (int) ($summary['lwp'] ?? 0),
+            'holiday' => (int) ($summary['holiday'] ?? 0),
+            'weekly_off' => (int) ($summary['weekly_off'] ?? 0),
         ];
     }
 
@@ -181,10 +187,14 @@ class DashboardService implements DashboardServiceInterface
         $records = $this->attendanceService->getAttendanceReport($month, $year);
 
         return [
-            'Present' => $records->where('status', 'Present')->count(),
+            'Present' => $records->where('display_status', 'Present')->count(),
+            'Late' => $records->where('display_status', 'Late')->count(),
+            'Half Day' => $records->where('display_status', 'Half Day')->count(),
+            'Leave' => $records->where('status', 'Leave')->count(),
+            'Holiday' => $records->where('status', 'Holiday')->count(),
+            'Weekly Off' => $records->where('status', 'Weekly Off')->count(),
+            'LWP' => $records->where('status', 'LWP')->count(),
             'Absent' => $records->where('status', 'Absent')->count(),
-            'Late' => $records->filter(fn (Attendance $attendance): bool => (int) $attendance->late_minutes > 0)->count(),
-            'Half Day' => $records->filter(fn (Attendance $attendance): bool => (bool) $attendance->half_day)->count(),
         ];
     }
 
@@ -235,9 +245,47 @@ class DashboardService implements DashboardServiceInterface
             'attendance_chart' => $this->getMonthlyAttendanceChart((int) now()->month, (int) now()->year),
             'leave_chart' => $this->getMonthlyLeaveChart((int) now()->month, (int) now()->year),
             'salary_chart' => $this->getMonthlySalaryChart((int) now()->month, (int) now()->year),
+            'leave_balances' => $this->getDashboardLeaveBalances(),
+            'recent_notifications' => $this->getRecentNotifications(5),
+            'can_manage_hierarchy' => $this->canManageHierarchy(),
         ];
     }
 
+
+    /** Determine if the authenticated user may manage hierarchy. */
+    protected function canManageHierarchy(): bool
+    {
+        if (! auth()->check()) {
+            return false;
+        }
+
+        $user = auth()->user();
+        $user->loadMissing('roles');
+        $roleNames = $user->roles->pluck('role_name');
+
+        return $roleNames->isEmpty()
+            || $roleNames->intersect(['Admin', 'HR'])->isNotEmpty();
+    }
+
+    /** Get authenticated user notifications for the dashboard. */
+    public function getRecentNotifications(int $limit = 5): array
+    {
+        if (! auth()->check()) {
+            return [];
+        }
+
+        return $this->notificationService->latestForNavbar(auth()->user(), $this->normalizeLimit($limit))->all();
+    }
+
+    /** Get authenticated employee leave balances for the dashboard. */
+    public function getDashboardLeaveBalances(): array
+    {
+        if (! auth()->check()) {
+            return [];
+        }
+
+        return $this->leavePolicyService->getBalanceResponse((int) auth()->id())->all();
+    }
     /** Normalize dashboard record limit. */
     protected function normalizeLimit(int $limit): int
     {

@@ -12,17 +12,12 @@ use Illuminate\Validation\Rule;
  */
 class UpdateLeaveRequest extends FormRequest
 {
-    /**
-     * Determine if the user is authorized to make this request.
-     */
     public function authorize(): bool
     {
         return true;
     }
 
     /**
-     * Get validation rules for leave application updates.
-     *
      * @return array<string, mixed>
      */
     public function rules(): array
@@ -32,7 +27,12 @@ class UpdateLeaveRequest extends FormRequest
             'leave_type_id' => ['sometimes', 'required', 'integer', 'exists:leave_types,id'],
             'from_date' => ['sometimes', 'required', 'date'],
             'to_date' => ['sometimes', 'required', 'date', 'after_or_equal:from_date'],
-            'total_days' => ['sometimes', 'required', 'integer', 'min:1'],
+            'total_days' => ['sometimes', 'required', 'numeric', 'min:0.5'],
+            'is_half_day' => ['nullable', 'boolean'],
+            'half_day' => ['nullable', 'boolean'],
+            'half_day_type' => ['nullable', 'string', 'in:first_half,second_half'],
+            'half_day_session' => ['nullable', 'string', 'in:first_half,second_half'],
+            'emergency_leave' => ['nullable', 'boolean'],
             'reason' => ['nullable', 'string'],
             'status' => ['sometimes', 'required', Rule::in(['Pending', 'Approved', 'Rejected'])],
             'approved_by' => ['nullable', 'integer', 'exists:users,id'],
@@ -41,8 +41,6 @@ class UpdateLeaveRequest extends FormRequest
     }
 
     /**
-     * Get custom validation messages.
-     *
      * @return array<string, string>
      */
     public function messages(): array
@@ -56,8 +54,6 @@ class UpdateLeaveRequest extends FormRequest
     }
 
     /**
-     * Get custom attribute names.
-     *
      * @return array<string, string>
      */
     public function attributes(): array
@@ -68,6 +64,10 @@ class UpdateLeaveRequest extends FormRequest
             'from_date' => 'From Date',
             'to_date' => 'To Date',
             'total_days' => 'Total Days',
+            'is_half_day' => 'Half Day',
+            'half_day_type' => 'Half Day Session',
+            'half_day_session' => 'Half Day Session',
+            'emergency_leave' => 'Emergency Leave',
             'approved_by' => 'Approved By',
             'approved_at' => 'Approved At',
         ];

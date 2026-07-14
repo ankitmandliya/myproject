@@ -15,7 +15,7 @@
 
         <form action="{{ route('hrms.users.store') }}" method="POST" enctype="multipart/form-data">
             @csrf
-            @include('Adminpanel.HRMS.Employees._partials.form', ['roles' => $roles, 'isEdit' => false])
+            @include('Adminpanel.HRMS.Employees._partials.form', ['roles' => $roles, 'reportingManagers' => $reportingManagers, 'isEdit' => false])
         </form>
     </div>
 </div>

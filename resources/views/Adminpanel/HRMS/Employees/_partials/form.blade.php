@@ -4,6 +4,7 @@
     $detail = $user?->userDetail;
     $selectedRoleId = old('role_id', $user?->roles?->first()?->id);
     $selectedStatus = old('status', $detail?->status ?? 1);
+    $selectedReportingManagerId = old('reporting_manager_id', $detail?->reporting_manager_id);
     $dobValue = old('dob', $detail?->dob ? \Illuminate\Support\Carbon::parse($detail->dob)->format('Y-m-d') : '');
     $joiningDateValue = old('joining_date', $detail?->joining_date ? \Illuminate\Support\Carbon::parse($detail->joining_date)->format('Y-m-d') : '');
     $defaultPhoto = 'assets/img/profile.jpg';
@@ -14,7 +15,7 @@
     $errorStepMap = [
         1 => ['emp_code', 'name', 'first_name', 'last_name', 'email', 'password', 'password_confirmation'],
         2 => ['gender', 'dob', 'phone', 'address', 'profile_photo'],
-        3 => ['joining_date', 'department', 'designation', 'basic_salary', 'role_id', 'status'],
+        3 => ['joining_date', 'department', 'designation', 'reporting_manager_id', 'basic_salary', 'role_id', 'status'],
         4 => ['aadhaar', 'pan'],
     ];
     $activeStep = 1;
@@ -207,6 +208,23 @@
                     </div>
                     <div class="col-md-4">
                         <div class="form-group py-1">
+                            <label for="reporting_manager_id">Reporting Manager</label>
+                            <select name="reporting_manager_id" id="reporting_manager_id" class="form-control @error('reporting_manager_id') is-invalid @enderror" data-review-label="Reporting Manager">
+                                <option value="">Select Reporting Manager</option>
+                                @foreach($reportingManagers ?? collect() as $manager)
+                                    @php
+                                        $managerDetail = $manager->userDetail;
+                                        $managerName = trim(($managerDetail?->first_name ?? '') . ' ' . ($managerDetail?->last_name ?? '')) ?: $manager->name;
+                                        $managerCode = $managerDetail?->emp_code ? ' (' . $managerDetail->emp_code . ')' : '';
+                                    @endphp
+                                    <option value="{{ $manager->id }}" @selected((string) $selectedReportingManagerId === (string) $manager->id)>{{ $managerName }}{{ $managerCode }}</option>
+                                @endforeach
+                            </select>
+                            @error('reporting_manager_id')<small class="text-danger d-block mt-1">{{ $message }}</small>@enderror
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-group py-1">
                             <label for="basic_salary">Basic Salary</label>
                             <input type="number" step="0.01" min="0" name="basic_salary" id="basic_salary" class="form-control @error('basic_salary') is-invalid @enderror" value="{{ old('basic_salary', $detail?->basic_salary) }}" data-review-label="Salary">
                             @error('basic_salary')<small class="text-danger d-block mt-1">{{ $message }}</small>@enderror
@@ -272,7 +290,7 @@
             </div>
             <div class="card-body py-2">
                 <div class="row" id="employeeReview">
-                    @foreach(['Employee Code', 'Name', 'Email', 'Gender', 'DOB', 'Department', 'Designation', 'Joining Date', 'Role', 'Status', 'Salary', 'Aadhaar', 'PAN'] as $label)
+                    @foreach(['Employee Code', 'Name', 'Email', 'Gender', 'DOB', 'Department', 'Designation', 'Reporting Manager', 'Joining Date', 'Role', 'Status', 'Salary', 'Aadhaar', 'PAN'] as $label)
                         <div class="col-md-4 mb-2">
                             <strong>{{ $label }}</strong><br>
                             <span data-review-output="{{ $label }}">-</span>
@@ -394,6 +412,7 @@ document.addEventListener('DOMContentLoaded', function () {
             'DOB': valueFor('#dob'),
             'Department': valueFor('#department'),
             'Designation': valueFor('#designation'),
+            'Reporting Manager': valueFor('#reporting_manager_id'),
             'Joining Date': valueFor('#joining_date'),
             'Role': valueFor('#role_id'),
             'Status': valueFor('#status'),

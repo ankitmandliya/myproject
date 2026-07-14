@@ -9,6 +9,9 @@
                     <th class="text-nowrap">Check Out</th>
                     <th class="text-nowrap">Working Hours</th>
                     <th>Status</th>
+                    <th class="text-nowrap">Leave Type</th>
+                    <th>Reason</th>
+                    <th class="text-nowrap">Approved By</th>
                 </tr>
             </thead>
             <tbody>
@@ -20,6 +23,9 @@
                         <td class="text-nowrap">{{ $record->check_out ?? '-' }}</td>
                         <td class="text-nowrap">{{ $record->working_hours ?? '-' }}</td>
                         <td><span class="badge bg-{{ $record->status_badge ?? 'secondary' }}">{{ $record->display_status ?? $record->status ?? '-' }}</span></td>
+                        <td class="text-nowrap">{{ $record->leave_type ?? $record->leaveType?->leave_name ?? '-' }}</td>
+                        <td class="text-break">{{ $record->leave_reason ?? $record->reason ?? '-' }}</td>
+                        <td class="text-nowrap">{{ $record->approved_by ?? '-' }}</td>
                     </tr>
                 @endforeach
             </tbody>

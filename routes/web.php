@@ -7,8 +7,11 @@ use App\Http\Controllers\LeaveTypeController;
 use App\Http\Controllers\HolidayController;
 use App\Http\Controllers\HRMS\AttendanceController as HrmsAttendanceController;
 use App\Http\Controllers\HRMS\DashboardController as HrmsDashboardController;
+use App\Http\Controllers\HRMS\FinancialYearController as HrmsFinancialYearController;
 use App\Http\Controllers\HRMS\CompanySettingController as HrmsCompanySettingController;
 use App\Http\Controllers\HRMS\LeaveApplyController as HrmsLeaveApplyController;
+use App\Http\Controllers\HRMS\LeaveReportController as HrmsLeaveReportController;
+use App\Http\Controllers\HRMS\NotificationController as HrmsNotificationController;
 use App\Http\Controllers\HRMS\RoleController as HrmsRoleController;
 use App\Http\Controllers\HRMS\SalaryController as HrmsSalaryController;
 use App\Http\Controllers\HRMS\UserController as HrmsUserController;
@@ -98,6 +101,7 @@ Route::prefix('hrms')
     ->middleware(['auth'])
     ->group(function () {
         Route::get('dashboard', [HrmsDashboardController::class, 'index'])->name('dashboard');
+        Route::get('reporting-hierarchy', [HrmsUserController::class, 'reportingHierarchy'])->name('reporting-hierarchy.index');
 
         Route::resource('users', HrmsUserController::class);
         Route::get('attendance/reports', [HrmsAttendanceController::class, 'reports'])->name('attendance.reports');
@@ -110,7 +114,36 @@ Route::prefix('hrms')
         Route::get('attendance/history/{employeeId}', [HrmsAttendanceController::class, 'history'])->name('attendance.history');
         Route::get('attendance/calendar/{employeeId}', [HrmsAttendanceController::class, 'calendar'])->name('attendance.calendar');
         Route::resource('attendance', HrmsAttendanceController::class);
+        Route::post('leave/calculate', [HrmsLeaveApplyController::class, 'calculate'])->name('leave.calculate');
+        Route::get('leave-apply/approvals', [HrmsLeaveApplyController::class, 'approvals'])->name('leave-apply.approvals');
+        Route::get('leave-apply/calendar', [HrmsLeaveApplyController::class, 'calendar'])->name('leave-apply.calendar');
+        Route::post('leave-apply/{leave_apply}/approve', [HrmsLeaveApplyController::class, 'approve'])->name('leave-apply.approve');
+        Route::post('leave-apply/{leave_apply}/reject', [HrmsLeaveApplyController::class, 'reject'])->name('leave-apply.reject');
+        Route::post('leave-apply/{leave_apply}/cancel', [HrmsLeaveApplyController::class, 'cancel'])->name('leave-apply.cancel');
+        Route::post('leave-apply/{leave_apply}/revoke', [HrmsLeaveApplyController::class, 'revoke'])->name('leave-apply.revoke');
         Route::resource('leave-apply', HrmsLeaveApplyController::class);
+        Route::get('financial-year', [HrmsFinancialYearController::class, 'index'])->name('financial-year.index');
+        Route::get('financial-year/preview', [HrmsFinancialYearController::class, 'preview'])->name('financial-year.preview');
+        Route::post('financial-year/close', [HrmsFinancialYearController::class, 'close'])->name('financial-year.close');
+        Route::get('financial-year/history', [HrmsFinancialYearController::class, 'history'])->name('financial-year.history');
+        Route::get('financial-year/{closing}', [HrmsFinancialYearController::class, 'show'])->name('financial-year.show');
+        Route::post('financial-year/{closing}/reopen', [HrmsFinancialYearController::class, 'reopen'])->name('financial-year.reopen');
+        Route::get('leave-reports', [HrmsLeaveReportController::class, 'index'])->name('leave-reports.index');
+        Route::get('leave-reports/employee', [HrmsLeaveReportController::class, 'employee'])->name('leave-reports.employee');
+        Route::get('leave-reports/employee/{employee}', [HrmsLeaveReportController::class, 'employeeShow'])->name('leave-reports.employee.show');
+        Route::get('leave-reports/department', [HrmsLeaveReportController::class, 'department'])->name('leave-reports.department');
+        Route::get('leave-reports/leave-type', [HrmsLeaveReportController::class, 'leaveType'])->name('leave-reports.leave-type');
+        Route::get('leave-reports/balance', [HrmsLeaveReportController::class, 'balance'])->name('leave-reports.balance');
+        Route::get('leave-reports/liability', [HrmsLeaveReportController::class, 'liability'])->name('leave-reports.liability');
+        Route::get('leave-reports/monthly', [HrmsLeaveReportController::class, 'monthly'])->name('leave-reports.monthly');
+        Route::get('leave-reports/financial-year', [HrmsLeaveReportController::class, 'financialYear'])->name('leave-reports.financial-year');
+        Route::get('leave-reports/approval', [HrmsLeaveReportController::class, 'approval'])->name('leave-reports.approval');
+        Route::get('leave-reports/lwp', [HrmsLeaveReportController::class, 'lwp'])->name('leave-reports.lwp');
+        Route::get('leave-reports/sandwich', [HrmsLeaveReportController::class, 'sandwich'])->name('leave-reports.sandwich');
+        Route::get('notifications', [HrmsNotificationController::class, 'index'])->name('notifications.index');
+        Route::post('notifications/read-all', [HrmsNotificationController::class, 'markAllRead'])->name('notifications.read-all');
+        Route::get('notifications/{notification}', [HrmsNotificationController::class, 'show'])->name('notifications.show');
+        Route::post('notifications/{notification}/read', [HrmsNotificationController::class, 'markRead'])->name('notifications.read');
         Route::resource('salary', HrmsSalaryController::class);
         Route::resource('roles', HrmsRoleController::class);
 
@@ -123,5 +156,3 @@ Route::prefix('hrms')
 Route::fallback(function () {
     return redirect()->route('pageNotFound');
 });
-
-

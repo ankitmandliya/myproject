@@ -29,7 +29,7 @@ class RejectLeaveRequest extends FormRequest
         return [
             'approved_by' => ['nullable', 'integer', 'exists:users,id'],
             'approved_at' => ['nullable', 'date'],
-            'remarks' => ['nullable', 'string', 'max:1000'],
+            'remarks' => ['required', 'string', 'min:10', 'max:1000'],
         ];
     }
 
@@ -43,6 +43,8 @@ class RejectLeaveRequest extends FormRequest
         return [
             'approved_by.exists' => 'Selected approver does not exist.',
             'approved_at.date' => 'Rejection date must be a valid date.',
+            'remarks.required' => 'Rejection remarks are required.',
+            'remarks.min' => 'Rejection remarks must be at least 10 characters.',
         ];
     }
 
@@ -60,3 +62,4 @@ class RejectLeaveRequest extends FormRequest
         ];
     }
 }
+

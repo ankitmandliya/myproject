@@ -44,7 +44,7 @@ class AttendanceController extends Controller
         $perPage = (int) $request->input('per_page', 10);
         $attendance = $this->attendanceService->getFilteredAttendance($filters, $perPage);
         $summary = $this->attendanceService->getTodaySummary();
-        $statusList = ['Present', 'Absent', 'Late', 'Half Day', 'Leave', 'Holiday'];
+        $statusList = ['Present', 'Late', 'Half Day', 'Leave', 'Holiday', 'Weekly Off', 'LWP', 'Absent'];
         $records = $attendance->getCollection();
         $employees = $records->pluck('user')->filter()->unique('id')->values();
         $departments = $records->pluck('user.userDetail.department')->filter()->unique()->values();
@@ -231,19 +231,19 @@ class AttendanceController extends Controller
         $filters = $request->only(['name', 'emp_code', 'department', 'designation', 'status', 'from_date', 'to_date']);
         $filters['month'] = $selectedMonth;
         $filters['year'] = $year;
-        $filters['year'] = $year;
         $perPage = (int) $request->input('per_page', 10);
-        $attendance = $this->attendanceService->getFilteredAttendance($filters, $perPage);
-        $attendance->getCollection()->each(function ($record): void {
+        $records = $this->reportRecords($request, $month, $year);
+        $records->each(function ($record): void {
             $status = $this->recordDisplayStatus($record);
             $record->setAttribute('display_status', $status);
             $record->setAttribute('status_badge', $this->reportStatusBadge($status));
         });
+        $attendance = $this->paginateReport($records, $request);
         $summary = $this->reportSummary($month, $year);
         $employees = $this->userService->getActiveUsers();
         $departments = $employees->pluck('userDetail.department')->filter()->unique()->sort()->values();
         $designations = $employees->pluck('userDetail.designation')->filter()->unique()->sort()->values();
-        $statusList = ['Present', 'Late', 'Half Day', 'Leave', 'Holiday', 'Weekly Off', 'Absent'];
+        $statusList = ['Present', 'Late', 'Half Day', 'Leave', 'Holiday', 'Weekly Off', 'LWP', 'Absent'];
 
         return view('Adminpanel.HRMS.Attendance.Reports.index', compact(
             'attendance', 'summary', 'filters', 'perPage', 'employees', 'departments', 'designations', 'statusList'
@@ -284,6 +284,9 @@ class AttendanceController extends Controller
                 'late' => $rows->sum('late'),
                 'half_day' => $rows->sum('half_day'),
                 'leave' => $rows->sum('leave'),
+                'lwp' => $rows->sum('lwp'),
+                'holiday' => $rows->sum('holiday'),
+                'weekly_off' => $rows->sum('weekly_off'),
                 'attendance_percentage' => $recordedDays > 0 ? round(($rows->sum('present') / $recordedDays) * 100, 2) : 0,
             ];
         })->values();
@@ -469,12 +472,7 @@ class AttendanceController extends Controller
     /** Build employee analytics from eager attendance records. */
     protected function employeeStatistics(Collection $records, int $month, int $year): Collection
     {
-        $calendarDays = collect($this->attendanceService->getMonthlyCalendar($month, $year)['weeks'])
-            ->flatten(1)->where('is_current_month', true);
-        $holidayDays = $calendarDays->where('status', 'Holiday')->count();
-        $weeklyOffDays = $calendarDays->where('status', 'Weekly Off')->count();
-
-        return $records->groupBy('user_id')->map(function (Collection $rows) use ($holidayDays, $weeklyOffDays): array {
+        return $records->groupBy('user_id')->map(function (Collection $rows): array {
             $user = $rows->first()->user;
             $detail = $user?->userDetail;
             $checkIns = $rows->pluck('check_in')->filter()->map(fn ($time): int => Carbon::parse($time)->hour * 60 + Carbon::parse($time)->minute);
@@ -486,12 +484,13 @@ class AttendanceController extends Controller
                 'employee_name' => trim(($detail?->first_name ?? '') . ' ' . ($detail?->last_name ?? '')) ?: ($user?->name ?? '-'),
                 'department' => $detail?->department ?? 'Unassigned',
                 'designation' => $detail?->designation ?? '-',
-                'present' => $rows->where('status', 'Present')->count(),
-                'late' => $rows->where('late_minutes', '>', 0)->count(),
-                'half_day' => $rows->where('half_day', true)->count(),
+                'present' => $rows->filter(fn ($record): bool => $this->recordDisplayStatus($record) === 'Present')->count(),
+                'late' => $rows->filter(fn ($record): bool => $this->recordDisplayStatus($record) === 'Late')->count(),
+                'half_day' => $rows->filter(fn ($record): bool => $this->recordDisplayStatus($record) === 'Half Day')->count(),
                 'leave' => $rows->where('status', 'Leave')->count(),
-                'holiday' => $holidayDays,
-                'weekly_off' => $weeklyOffDays,
+                'lwp' => $rows->where('status', 'LWP')->count(),
+                'holiday' => $rows->where('status', 'Holiday')->count(),
+                'weekly_off' => $rows->where('status', 'Weekly Off')->count(),
                 'absent' => $rows->where('status', 'Absent')->count(),
                 'working_hours' => round((float) $rows->sum('working_hours'), 2),
                 'average_check_in' => $this->averageTime($checkIns),
@@ -515,7 +514,11 @@ class AttendanceController extends Controller
     /** Resolve presentation status through attendance fields. */
     protected function recordDisplayStatus(mixed $record): string
     {
-        return $record->half_day ? 'Half Day' : ((int) $record->late_minutes > 0 ? 'Late' : (string) $record->status);
+        if (! empty($record->display_status)) {
+            return (string) $record->display_status;
+        }
+
+        return (int) $record->late_minutes > 0 ? 'Late' : ($record->half_day ? 'Half Day' : (string) $record->status);
     }
 
     /** Resolve a Bootstrap report status badge class. */
@@ -526,6 +529,7 @@ class AttendanceController extends Controller
             'Late' => 'warning',
             'Half Day' => 'info',
             'Leave' => 'primary',
+            'LWP' => 'dark',
             'Absent' => 'danger',
             'Weekly Off' => 'dark',
             default => 'secondary',

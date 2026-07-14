@@ -11,17 +11,12 @@ use Illuminate\Foundation\Http\FormRequest;
  */
 class StoreLeaveRequest extends FormRequest
 {
-    /**
-     * Determine if the user is authorized to make this request.
-     */
     public function authorize(): bool
     {
         return true;
     }
 
     /**
-     * Get validation rules for leave applications.
-     *
      * @return array<string, mixed>
      */
     public function rules(): array
@@ -31,14 +26,17 @@ class StoreLeaveRequest extends FormRequest
             'leave_type_id' => ['required', 'integer', 'exists:leave_types,id'],
             'from_date' => ['required', 'date'],
             'to_date' => ['required', 'date', 'after_or_equal:from_date'],
-            'total_days' => ['required', 'integer', 'min:1'],
+            'total_days' => ['required', 'numeric', 'min:0.5'],
+            'is_half_day' => ['nullable', 'boolean'],
+            'half_day' => ['nullable', 'boolean'],
+            'half_day_type' => ['nullable', 'string', 'in:first_half,second_half'],
+            'half_day_session' => ['nullable', 'string', 'in:first_half,second_half'],
+            'emergency_leave' => ['nullable', 'boolean'],
             'reason' => ['nullable', 'string'],
         ];
     }
 
     /**
-     * Get custom validation messages.
-     *
      * @return array<string, string>
      */
     public function messages(): array
@@ -54,8 +52,6 @@ class StoreLeaveRequest extends FormRequest
     }
 
     /**
-     * Get custom attribute names.
-     *
      * @return array<string, string>
      */
     public function attributes(): array
@@ -66,6 +62,10 @@ class StoreLeaveRequest extends FormRequest
             'from_date' => 'From Date',
             'to_date' => 'To Date',
             'total_days' => 'Total Days',
+            'is_half_day' => 'Half Day',
+            'half_day_type' => 'Half Day Session',
+            'half_day_session' => 'Half Day Session',
+            'emergency_leave' => 'Emergency Leave',
         ];
     }
 }

@@ -7,6 +7,9 @@
         'Late' => 'bg-warning text-dark',
         'Half Day' => 'bg-info',
         'Leave' => 'bg-primary',
+        'LWP' => 'bg-dark',
+        'First Half Leave' => 'bg-info',
+        'Second Half Leave' => 'bg-info',
         'Absent' => 'bg-danger',
         'Holiday' => 'bg-secondary',
         'Weekly Off' => 'bg-dark',
@@ -45,7 +48,7 @@
         </div>
 
         <div class="row row-cols-2 row-cols-md-5 g-3 mb-3">
-            @foreach(['present' => 'Present', 'absent' => 'Absent', 'leave' => 'Leave', 'late_days' => 'Late', 'half_days' => 'Half Day'] as $key => $label)
+            @foreach(['present' => 'Present', 'absent' => 'Absent', 'leave' => 'Leave', 'lwp' => 'LWP', 'late_days' => 'Late', 'half_days' => 'Half Day'] as $key => $label)
                 <div class="col">
                     <div class="card card-stats card-round h-100 mb-0">
                         <div class="card-body text-center py-3">
@@ -95,9 +98,20 @@
                                             @endif
                                             <div class="fw-bold fs-5 lh-1 mb-2">{{ $day['day'] }}</div>
                                             @if($day['is_current_month'])
-                                                <span class="badge text-wrap {{ $calendarBadgeClasses[$day['status']] ?? 'bg-secondary' }}">{{ $day['status'] }}</span>
+                                                @if(! empty($day['leave_code']))
+                                                    <span class="badge text-wrap {{ $day['leave_badge_class'] ?? 'bg-primary' }}">{{ $day['leave_code'] }}</span>
+                                                    <div class="small fw-semibold mt-1 text-break">{{ $day['status_label'] ?? $day['status'] }}</div>
+                                                @else
+                                                    <span class="badge text-wrap {{ $calendarBadgeClasses[$day['status']] ?? 'bg-secondary' }}">{{ $day['status_label'] ?? $day['status'] }}</span>
+                                                @endif
                                                 @if($day['holiday_name'])
                                                     <div class="small fw-semibold mt-1 text-break">{{ $day['holiday_name'] }}</div>
+                                                @endif
+                                                @if(! empty($day['leave_type']))
+                                                    <div class="small text-muted mt-1 text-break">{{ $day['leave_type'] }}</div>
+                                                @endif
+                                                @if(! empty($day['approved_by']))
+                                                    <div class="small text-muted text-break">Approved by {{ $day['approved_by'] }}</div>
                                                 @endif
                                                 @if($day['check_in'])
                                                     <div class="small mt-1 text-nowrap"><i class="fas fa-sign-in-alt text-success" aria-hidden="true"></i> {{ $day['check_in'] }}</div>
@@ -125,7 +139,7 @@
                 @endif
 
                 <div class="d-flex flex-wrap gap-2" aria-label="Attendance legend">
-                    @foreach(['Present','Late','Half Day','Leave','Absent','Holiday','Weekly Off'] as $status)
+                    @foreach(['Present','Late','Half Day','Leave','LWP','Absent','Holiday','Weekly Off'] as $status)
                         <span class="badge {{ $calendarBadgeClasses[$status] }}">{{ $status }}</span>
                     @endforeach
                 </div>

@@ -8,6 +8,7 @@ use App\Models\LeaveApply;
 use Carbon\Carbon;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Collection as SupportCollection;
 
 /**
  * Defines the leave service contract.
@@ -16,6 +17,18 @@ interface LeaveServiceInterface
 {
     /** Get paginated leave applications. */
     public function paginate(int $perPage = 10): LengthAwarePaginator;
+
+    /** Get filtered, paginated leave applications. */
+    public function getFilteredLeaves(array $filters = [], int $perPage = 10, ?int $userId = null): LengthAwarePaginator;
+
+    /** Get leave dashboard summary values. */
+    public function getLeaveSummary(?int $userId = null): array;
+
+    /** Get active leave types for forms and filters. */
+    public function getActiveLeaveTypes(): Collection;
+
+    /** Get prepared leave calendar rows. */
+    public function getLeaveCalendar(int $month, int $year, ?int $userId = null): SupportCollection;
 
     /** Get a leave application by ID. */
     public function getById(int $id): LeaveApply;

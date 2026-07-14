@@ -1,8 +1,8 @@
 @foreach (['success' => 'success', 'error' => 'danger', 'warning' => 'warning', 'info' => 'info'] as $messageKey => $alertClass)
     @if (session($messageKey))
         <div class="container">
-            <div class="page-inner pt-2 pb-0">
-                <div class="alert alert-{{ $alertClass }} alert-dismissible fade show mb-2 py-2" role="alert">
+            <div class="page-inner pt-1 pb-0">
+                <div class="alert alert-{{ $alertClass }} alert-dismissible fade show mb-1 py-2" role="alert">
                     {{ session($messageKey) }}
                     <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                 </div>
@@ -13,8 +13,8 @@
 
 @if (isset($errors) && $errors->any())
     <div class="container">
-        <div class="page-inner pt-2 pb-0">
-            <div class="alert alert-danger alert-dismissible fade show mb-2 py-2" role="alert">
+        <div class="page-inner pt-1 pb-0">
+            <div class="alert alert-danger alert-dismissible fade show mb-1 py-2" role="alert">
                 <strong>{{ $errors->first() }}</strong>
                 @if ($errors->count() > 1)
                     <ul class="mb-0 mt-1 ps-3">

@@ -48,6 +48,7 @@ class UpdateUserRequest extends FormRequest
             'joining_date' => ['sometimes', 'required', 'date'],
             'department' => ['nullable', 'string', 'max:100'],
             'designation' => ['nullable', 'string', 'max:100'],
+            'reporting_manager_id' => ['nullable', 'integer', 'exists:users,id'],
             'basic_salary' => ['nullable', 'numeric', 'min:0'],
             'address' => ['nullable', 'string'],
             'aadhaar' => ['nullable', 'string', 'max:20', Rule::unique('user_details', 'aadhaar')->ignore($userDetailId)],
@@ -71,6 +72,7 @@ class UpdateUserRequest extends FormRequest
             'first_name.required' => 'Employee first name is required.',
             'joining_date.required' => 'Employee joining date is required.',
             'role_id.required' => 'Employee role is required.',
+            'reporting_manager_id.exists' => 'Selected reporting manager is not available.',
             'aadhaar.unique' => 'This Aadhaar number is already in use.',
             'pan.unique' => 'This PAN number is already in use.',
         ];
@@ -89,6 +91,7 @@ class UpdateUserRequest extends FormRequest
             'last_name' => 'Last Name',
             'dob' => 'Date of Birth',
             'joining_date' => 'Joining Date',
+            'reporting_manager_id' => 'Reporting Manager',
             'basic_salary' => 'Basic Salary',
             'profile_photo' => 'Profile Photo',
             'aadhaar' => 'Aadhaar',

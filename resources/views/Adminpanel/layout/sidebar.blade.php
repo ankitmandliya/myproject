@@ -5,6 +5,10 @@
         || request()->routeIs('hrms.leave-apply.*');
 
     $canManageAttendance = auth()->user()?->roles?->pluck('role_name')->intersect(['Admin', 'HR'])->isNotEmpty() ?? false;
+    $isReportingManagerForLeave = auth()->check() && \App\Models\UserDetail::where('reporting_manager_id', (int) auth()->id())->exists();
+    $canManageLeaveApproval = $canManageAttendance || $isReportingManagerForLeave;
+    $isLeaveReportsActive = request()->routeIs('hrms.leave-reports.*');
+    $isFinancialYearActive = request()->routeIs('hrms.financial-year.*');
     $isAttendanceMenuActive = request()->routeIs('hrms.attendance.index')
         || request()->routeIs('hrms.attendance.create')
         || request()->routeIs('hrms.attendance.show')
@@ -17,11 +21,13 @@
 
     $isHrmsMenuActive = request()->routeIs('hrms.dashboard')
         || request()->routeIs('hrms.users.*')
+        || request()->routeIs('hrms.reporting-hierarchy.*')
         || $isAttendanceMenuActive
         || $isAttendanceReportsActive
         || request()->routeIs('hrms.salary.*')
         || request()->routeIs('hrms.roles.*')
         || request()->routeIs('hrms.company-setting.*')
+        || $isLeaveReportsActive
         || $isLeaveMenuActive;
 @endphp
 
@@ -75,6 +81,18 @@
                                     <span class="sub-item">Employees</span>
                                 </a>
                             </li>
+                            @if($canManageAttendance)
+                                <li class="{{ request()->routeIs('hrms.reporting-hierarchy.*') ? 'active' : '' }}">
+                                    <a href="{{ route('hrms.reporting-hierarchy.index') }}">
+                                        <span class="sub-item">Reporting Hierarchy</span>
+                                    </a>
+                                </li>
+                            @endif
+                            <li class="{{ request()->routeIs('hrms.notifications.*') ? 'active' : '' }}">
+                                <a href="{{ route('hrms.notifications.index') }}">
+                                    <span class="sub-item">Notifications</span>
+                                </a>
+                            </li>
                             <li class="{{ $isAttendanceMenuActive ? 'active' : '' }}">
                                 <a href="{{ $canManageAttendance ? route('hrms.attendance.index') : route('hrms.my-attendance') }}">
                                     <span class="sub-item">{{ $canManageAttendance ? 'Attendance' : 'My Attendance' }}</span>
@@ -104,14 +122,35 @@
                                                 <span class="sub-item">Holidays</span>
                                             </a>
                                         </li>
-                                        <li class="{{ request()->routeIs('hrms.leave-apply.*') ? 'active' : '' }}">
+                                        <li class="{{ request()->routeIs('hrms.leave-apply.index') || request()->routeIs('hrms.leave-apply.create') || request()->routeIs('hrms.leave-apply.edit') || request()->routeIs('hrms.leave-apply.show') || request()->routeIs('hrms.leave-apply.calendar') || request()->routeIs('hrms.leave-apply.history') ? 'active' : '' }}">
                                             <a href="{{ route('hrms.leave-apply.index') }}">
                                                 <span class="sub-item">Leave Apply</span>
                                             </a>
                                         </li>
+                                        @if ($canManageLeaveApproval)
+                                            <li class="{{ request()->routeIs('hrms.leave-apply.approvals') ? 'active' : '' }}">
+                                                <a href="{{ route('hrms.leave-apply.approvals') }}">
+                                                    <span class="sub-item">Leave Approvals</span>
+                                                </a>
+                                            </li>
+                                        @endif
+                                        @if ($canManageAttendance)
+                                            <li class="{{ $isLeaveReportsActive ? 'active' : '' }}">
+                                                <a href="{{ route('hrms.leave-reports.index') }}">
+                                                    <span class="sub-item">Leave Reports</span>
+                                                </a>
+                                            </li>
+                                        @endif
                                     </ul>
                                 </div>
                             </li>
+                            @if($canManageAttendance)
+                                <li class="{{ $isFinancialYearActive ? 'active' : '' }}">
+                                    <a href="{{ route('hrms.financial-year.index') }}">
+                                        <span class="sub-item">Financial Year Closing</span>
+                                    </a>
+                                </li>
+                            @endif
                             <li class="{{ request()->routeIs('hrms.salary.*') ? 'active' : '' }}">
                                 <a href="{{ route('hrms.salary.index') }}">
                                     <span class="sub-item">Payroll</span>
@@ -135,4 +174,3 @@
     </div>
 </div>
 <!-- End Sidebar -->
-

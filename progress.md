@@ -351,3 +351,217 @@ Legacy Modules: Holiday and LeaveType were implemented before the standardized H
 - Duplicate Bootstrap instances eliminated: Render verification confirmed exactly one check-in modal and one checkout modal in the page, and no modal HTML inside the widget partial.
 - Browser verification completed: CLI verification covered modal placement, AJAX success, widget dropdown presence, prohibited manual Bootstrap cleanup removal, Blade compilation, and no render errors. Interactive browser console checks were not available from CLI.
 - Verification commands passed: `optimize:clear`, `optimize`, `view:clear`, `view:cache`, rollback-only AJAX smoke checks, render modal-count checks, and full app PHP lint all passed.
+
+- Task completed: Implemented the HRMS Leave Management Blade UI from `mdfiles/10F_hrms_leave_apply_blade.md`.
+- Leave List completed: Added the controller-backed `Adminpanel.HRMS.Leaves.index` page with summary cards, retained filters, export/print placeholders, status badges, employee photos with fallback avatar, empty state, actions, and Laravel pagination rendering.
+- Apply Leave completed: Added a Bootstrap multi-step leave application view with employee information, leave details, reason, attachment placeholder, review section, required markers, and validation feedback while reusing the existing resource store route.
+- Edit Leave completed: Added the edit view using the same reusable form partial and existing resource update route.
+- Leave Details completed: Added the show view with employee, leave type, reason, duration, status, applied date, approver, approved date, remarks, and reusable timeline partial.
+- Leave Approval completed: Added an approval Blade page for pending requests with View, Approve, and Reject actions. Approve/Reject buttons are disabled because no named approve/reject routes are registered in `routes/web.php`.
+- Leave Calendar completed: Added a Bootstrap-table-only calendar view that can render prepared leave, holiday, and weekly-off items without JavaScript calendar plugins. No named calendar route is registered in `routes/web.php`.
+- Summary Cards integrated: Added reusable dashboard-style cards that render prepared summary data only and avoid database queries or service calls in Blade.
+- Filters integrated: Added employee, employee code, department, leave type, status, from date, to date, and per-page controls with retained selected values.
+- Pagination integrated: The list page renders existing Laravel paginator links and preserves query strings.
+- Directory compatibility completed: Functional views were added under `resources/views/Adminpanel/HRMS/Leaves` because `LeaveApplyController` already returns `Adminpanel.HRMS.Leaves.*`; requested singular `resources/views/Adminpanel/HRMS/Leave` wrapper files were also added.
+- Browser verification completed: Blade compilation passed with no undefined-variable compile errors. Full interactive browser verification was not available from CLI, and approval/calendar pages currently lack registered routes.
+- Verification commands passed: `docker compose exec app php artisan optimize:clear`, `optimize`, `view:cache`, full `route:list`, `about`, and full app PHP lint all passed. Local `php artisan view:cache` outside Docker could not run because `php` is not installed on the PowerShell PATH.
+
+- Task completed: Integrated the HRMS Leave controller/backend with the Blade UI from `mdfiles/10F1_hrms_leave_controller_integration.md`.
+- Leave Controller integrated: `LeaveApplyController` now connects list, create, store, show, edit, update, delete, approvals, approve, reject, calendar, and history flows through `LeaveServiceInterface` with role-aware authorization.
+- LeaveService integration completed: Added service contract/implementation methods for filtered pagination, dashboard summary values, active leave types, prepared calendar rows, and pending leave update persistence so the controller stays thin and Blade remains render-only.
+- Summary cards connected: Leave list cards now receive prepared total balance, used leave, remaining leave, pending, approved, rejected, and total applied values from LeaveService.
+- Filters connected: Employee, employee code, department, leave type, status, from date, to date, and per-page filters are retained and passed into LeaveService filtering.
+- Pagination connected: Leave list uses 10, 25, 50, and 100 row pagination through the service-backed paginator with retained query strings.
+- Approval workflow connected: Added `hrms.leave-apply.approvals`, `approve`, and `reject` routes; approval Blade now posts to the new routes and HR/Admin authorization returns 403 for unauthorized users.
+- Leave calendar connected: Added `hrms.leave-apply.calendar` route and service-prepared rows for approved leaves, active holidays, and configured weekly off days without fake/demo data.
+- Employee authorization verified: Employee-context render checks returned HTTP 200 for own leave list/calendar and HTTP 403 for the approvals page.
+- HR/Admin authorization verified: Admin-context render checks returned HTTP 200 for leave list, create, calendar, and approvals pages.
+- Browser verification completed: CLI-authenticated render checks verified the connected GET pages and authorization behavior. No existing leave rows were present, so show/edit/delete/approve/reject could not be exercised against real records without creating data.
+- Verification commands passed: `docker compose exec app php artisan optimize:clear`, `optimize`, `view:cache`, full `route:list`, `about`, targeted leave lint, full app PHP lint, and authenticated render/authorization smoke checks all passed.
+
+- Task completed: Refined the HRMS Leave UI and browser bug fixes from `mdfiles/10F2_hrms_leave_ui_refinement.md`.
+- Leave UI refined: Leave list, apply/edit wizard, details, approval, calendar, timeline, empty states, status badges, avatars, and action spacing were polished while preserving the existing Admin Panel Bootstrap style.
+- Wizard validation improved: The apply/edit form now behaves as a four-step wizard with Previous/Next controls, active/completed step indicators, current-step validation before navigation, inline client validation messages, retained old input, and current-step restoration after validation errors.
+- Review step completed: Review now displays employee, employee code, department, designation, leave type, from date, to date, total days, reason, attachment filename placeholder, and status with safe fallbacks.
+- Flash spacing improved: Existing flash component spacing was tightened while preserving success auto-hide and keeping validation errors visible.
+- Calendar refined: Leave calendar now has Previous, Current, and Next month navigation, month filtering, real prepared data rows, type badges for approved leave, holidays, and weekly offs, and improved empty state rendering.
+- Timeline improved: Timeline now presents Applied, Pending, and Approved/Rejected states with icons, current-stage highlighting, and clearer timestamps.
+- Approval UI refined: Approval table now shows employee photo, employee identity, leave duration, days, remarks/reason, aligned actions, and loading-state Approve/Reject buttons.
+- Duplicate submission prevention added: Apply, Update, Approve, Reject, and Delete flows now disable submit buttons and show spinner states; pending leave deletion uses a Bootstrap confirmation modal instead of direct submit or browser alerts.
+- Browser verification completed: Authenticated render checks passed for Admin leave list, create wizard, approvals, calendar, and previous/current/next month URLs; employee checks passed for list/calendar and returned 403 for approvals. No existing leave rows were present, so record-specific edit/delete/approve/reject interaction could not be exercised against real records without creating test data.
+- Verification commands passed: `docker compose exec app php artisan optimize:clear`, `optimize`, `view:cache`, full `route:list`, `about`, targeted controller lint, full app PHP lint, and authenticated render/authorization smoke checks all passed.
+
+- Task completed: Implemented the HRMS leave policy and balance engine from `mdfiles/10F3_hrms_leave_policy_and_balance_engine.md`.
+- Leave policy engine added: Created `LeavePolicyServiceInterface` and `LeavePolicyService` with financial-year helpers for Apr 1 to Mar 31, prorated allocation, carry forward, balance lookup, consume, restore, and validation methods.
+- Balance storage added: Added the `employee_leave_balances` migration/model with per-employee, per-leave-type, per-financial-year allocated, used, remaining, and carry-forward values; migration also adds policy columns to `leave_types` for annual/monthly allocation, carry forward, sandwich, half-day, and approval requirements.
+- Leave workflow integrated: Leave apply/update now validates requested days against remaining balance, approval consumes balance, rejection does not consume balance, and restore support is available through the policy service for cancellation-style flows.
+- Leave balance UI added: HRMS dashboard and leave apply/edit wizard now show current financial-year leave balances with allocated, used, carry-forward, and remaining values, including selected leave-type highlighting in the wizard.
+- Verification completed: Migration ran successfully; policy service smoke checks returned financial year `2026-2027` with `2026-04-01` to `2027-03-31`; active user 3 received 9 balance rows; direct consume/restore changed balance 2 from `0,2.25` to `1,1.25` and back to `0,2.25`; authenticated render checks returned HTTP 200 for HRMS dashboard, leave list, and leave create.
+- Verification commands passed: `docker compose exec app php artisan optimize:clear`, `migrate`, `optimize`, `view:cache`, leave route list, `about`, and full PHP lint over `app` and `database` all passed. No existing pending leave records were present, so approval consumption was smoke-tested through the policy service directly.
+
+- Task completed: Implemented the HRMS leave prorata allocation and carry-forward engine from `mdfiles/10F4_hrms_leave_prorata_and_carry_forward.md`.
+- Prorata allocation engine completed: `LeavePolicyService` now exposes reusable financial-year methods including `allocateFinancialYear`, `generateFinancialYearBalances`, `allocateEmployee`, `allocateLeaveType`, `allocateProrataLeave`, `carryForwardEarnLeave`, and `resetFinancialYear` while preserving existing 10F3 methods.
+- Mid-year joining allocation completed: Allocation remains April 1 to March 31 and calculates eligible months from the employee joining month through March, using leave-type annual/monthly policy values with `total_days` fallback.
+- Carry Forward implemented: Only Earned Leave/EL carries remaining balance into the new financial year; Casual Leave, Sick Leave, LWP, and other leave types reset carry-forward to zero.
+- Earn Leave carry forward verified: Test employee with EL remaining 8 in 2026-2027 generated 2027-2028 EL as allocated 18, carry-forward 8, remaining 26.
+- Casual Leave reset verified: Test employee with CL remaining 4 in 2026-2027 generated 2027-2028 CL as allocated 12, carry-forward 0, remaining 12.
+- Sick Leave reset verified: Test employee with SL remaining 3 in 2026-2027 generated 2027-2028 SL as allocated 12, carry-forward 0, remaining 12.
+- Duplicate allocation prevention completed: Running allocation repeatedly for the same employee/year kept balance rows at `9->9` using the employee, leave type, and financial year unique key.
+- Joining date recalculation completed: Updating a test employee joining date from October to June and forcing recalculation changed CL allocation to 10 months without duplicate rows.
+- Active employees only verified: Inactive employee allocation returned 0 balances.
+- Dashboard integration verified: Authenticated `/hrms/dashboard` rendered HTTP 200 with allocation-backed leave balances.
+- Leave Apply integration verified: Authenticated `/hrms/leave-apply` and `/hrms/leave-apply/create` rendered HTTP 200 with allocation-backed balances.
+- Verification completed: `optimize:clear`, `migrate`, `optimize`, `view:cache`, full `route:list`, `about`, full app PHP lint, transaction-backed prorata/carry-forward tests, and scheduler-style `allocateFinancialYear()` smoke test all passed.
+
+- Task completed: Implemented the leave policy configuration database prep from `mdfiles/sandwich_leave.md` / `10F4A_hrms_leave_policy_configuration_migration.md`.
+- Leave Policy configuration migration created: Added a backward-compatible guarded migration for `company_setting` with `sandwich_leave_enabled`, `holiday_between_leave_count`, `weekly_off_between_leave_count`, `allow_half_day_leave`, `leave_apply_before_days`, and `leave_cancel_before_days` defaults and comments.
+- Company Settings updated: Existing company setting row remains intact with office time and weekly off preserved.
+- Seeder updated: `CompanySettingSeeder` now updates leave policy defaults on row `id=1` and does not create duplicate company setting rows.
+- Model updated: `CompanySetting` fillable and casts now include the leave policy configuration fields.
+- Migration verified: Migration ran successfully and all six new columns exist on `company_setting`.
+- Seeder verified: `db:seed` completed; `company_setting` row count remained `1`; defaults verified as `0,1,1,1,0,0`.
+- Verification commands passed: `migrate`, `db:seed`, `optimize:clear`, `optimize`, `about`, `route:list`, targeted PHP lint, and full app PHP lint all passed.
+
+- Task completed: Implemented the HRMS leave calculation snapshot and audit trail preparation from `mdfiles/10F4B_hrms_leave_calculation_snapshot.md`.
+- Leave snapshot migration created: Added guarded `leave_apply` columns for `requested_days`, `holiday_days`, `weekly_off_days`, `sandwich_days`, `payable_leave_days`, and nullable `leave_calculation_json`.
+- LeaveApply model updated: Added snapshot fields to fillable and casts, including array casting for `leave_calculation_json`.
+- Snapshot JSON integration completed: `LeavePolicyService::prepareCalculationSnapshot()` now prepares current financial year, requested days, policy flags, weekly off names/dates, holiday dates, placeholder sandwich days, payable leave days, leave type, and generated timestamp.
+- Immutable audit trail prepared: `LeaveService` stores snapshots on create/update for pending requests only; approved requests remain blocked from update and approval consumes `payable_leave_days` with fallback to `total_days` for historical rows.
+- Verification completed: Migration ran successfully; all six snapshot columns exist; existing leave row count remained `0`; rollback-wrapped leave apply stored `3,0,0,0,3` snapshot fields; JSON cast returned `array`; approved snapshot remained unchanged and update attempts were blocked.
+- Verification commands passed: `migrate`, `optimize:clear`, `optimize`, `view:cache`, `route:list`, `about`, targeted PHP lint, full app PHP lint, and migration status checks all passed.
+
+- Task completed: Implemented the HRMS leave sandwich and duration engine from `mdfiles/10F5_hrms_leave_sandwich_and_duration_engine.md`.
+- Leave Duration Engine completed: `LeavePolicyService` now calculates requested days, holiday days, weekly-off days, sandwich days, payable leave days, date lists, policy flags, and half-day metadata through a single duration array.
+- Holiday Engine completed: Active holidays from `holidays` are detected across date ranges and included or excluded from payable leave based on `holiday_between_leave_count`.
+- Weekly Off Engine completed: Weekly offs are driven by `company_setting.weekly_off`, including multi-day formats like `Saturday+Sunday`, and are included or excluded through `weekly_off_between_leave_count`.
+- Sandwich Leave Engine completed: When `sandwich_leave_enabled` is active, excluded holidays and weekly offs between leave start and end dates are added back as sandwich days.
+- Half Day support completed: Half-day requests support `is_half_day` / `half_day`, enforce company policy, require `first_half` or `second_half`, reject multi-day half-day requests, and deduct `0.5` payable day.
+- Snapshot integration completed: Leave create/update now pass request options into `prepareCalculationSnapshot()` and persist requested, holiday, weekly off, sandwich, payable, and JSON snapshot values.
+- Balance validation completed: Leave apply/update validation now uses `payable_leave_days`; approval consumes `payable_leave_days` with the existing historical fallback.
+- Leave Apply UI display completed: The existing leave wizard now displays Requested Days, Holiday Days, Weekly Off Days, Sandwich Days, and Final Payable Days in the details and review steps without redesigning the page.
+- Verification completed: Transaction-backed checks verified weekly-off exclusion payable `2`, sandwich payable `4`, counted weekly-off payable `4`, holiday exclusion payable `2`, holiday sandwich payable `3`, half-day payable `0.5`, multi-day/disabled half-day rejections, snapshot persistence, pending recalculation, and approved immutability.
+- Verification commands passed: `docker compose exec app php artisan optimize:clear`, `optimize`, `view:cache`, `route:list`, `about`, full app PHP lint, targeted PHP lints, Blade cache compilation, and transactional duration-engine smoke checks all passed.
+
+- Task completed: Fixed HRMS leave live calculation from `mdfiles/10F5A_hrms_leave_live_calculation_fix.md`.
+- Live calculation endpoint added: Added authenticated `POST /hrms/leave/calculate` named `hrms.leave.calculate`, delegated by `LeaveApplyController` directly to `LeavePolicyService::calculateLiveLeave()`.
+- Single source of truth enforced: Leave duration, holidays, weekly offs, sandwich days, half-day, payable days, remaining balance, balance after approval, warnings, and LWP balance-skip logic now come from `LeavePolicyService`.
+- Blade calculation removed: The leave form JavaScript no longer performs date math; it only collects fields, debounces 300ms, aborts duplicate requests, calls the live endpoint, and renders service JSON.
+- Live UI completed: Leave type/date/half-day/session/emergency changes update Requested Days, Holiday Days, Weekly Off Days, Sandwich Days, Final Payable Days, Remaining Balance, Balance After Approval, warning state, submit disabled state, and calendar preview without refresh.
+- Half Day submission fixed: Store and Update leave requests now accept `0.5` total days plus half-day/session and emergency fields.
+- Leave Without Pay handled: LWP/unpaid leave types skip balance validation and approval consumption while still calculating payable days.
+- Smoke tests completed: Endpoint returned HTTP 200 with Requested Days `3`, Payable Days `3`, Remaining Balance `90`, and Balance After Approval `87`; service checks verified inclusive days, same-day leave, half-day `0.5`, weekly-off exclusion, sandwich ON/OFF, LWP skip, and snapshot values matching live calculation.
+- Verification commands passed: `php artisan optimize:clear`, `migrate`, `optimize`, `view:cache`, `route:list`, `about`, targeted PHP lints, Blade compilation, and full `find app -name "*.php" -exec php -l {} \;` all passed.
+
+## 10F6 HRMS Leave Approval Workflow - 2026-07-11
+- Multi-level approval workflow implemented through `LeaveApprovalService`.
+- Reporting Manager, HR, and Admin approval chain is configurable from company settings.
+- Approval timeline and immutable audit log are stored with each leave request.
+- Role-based authorization added for manager, HR, admin, employee cancel, and admin revoke actions.
+- Database notification hook and leave workflow events added for apply, manager approval, HR approval, final approval, reject, cancel, and revoke.
+- Approval uses stored calculation snapshots and deducts balance only on final approval.
+- Revoke restores consumed balance; rejection and cancellation remain balance-neutral.
+- Approval overlap validation, payroll-lock validation, inactive employee guard, and attendance warning support added.
+- Approval dashboard now includes status tabs, filters, snapshot summary, timeline, remarks, and approval/rejection/revoke controls.
+- Verification completed: migration, optimize clear/cache, route list, about, view cache, full app PHP lint, manual workflow smoke, and auto approval smoke.
+
+## 10F7 HRMS Leave Attendance Integration - 2026-07-12
+- Leave-aware attendance engine completed in `AttendanceService` with `getAttendanceStatus`, `getAttendanceSource`, `getLeaveStatus`, `getLeaveBadge`, `isAttendanceAllowed`, `canCheckIn`, and `canCheckOut`.
+- Attendance status priority implemented as Holiday, Approved Leave/LWP, Weekly Off, Present, Late, Half Day, LWP, Absent; check-in/check-out now blocks approved full-day leave with `You are already on approved leave today.`
+- Attendance calendar, history, reports, dashboard, and header widget now surface approved leave/LWP badges, leave type, reason, approved-by details, and leave-aware summary counts.
+- Leave approval/cancel/revoke events now trigger an attendance refresh listener without duplicating leave calculations.
+- Transaction smoke verified approved leave appears in status/widget/calendar/report rows and blocks check-in with the required message.
+- Verification commands passed: `optimize:clear`, `optimize`, `view:cache`, full `route:list`, `about`, targeted PHP lints, full app PHP lint sweep, Blade cache compilation, and transaction-backed attendance integration smoke.
+
+## 10F6A HRMS Leave Approval Frontend - 2026-07-12
+- Approval dashboard frontend completed at `resources/views/Adminpanel/HRMS/Leaves/approvals.blade.php` using the existing `hrms.leave-apply.*` approval, reject, cancel, revoke, show, and approvals routes.
+- Reporting Manager, HR, and Admin approval navigation added through the HRMS Leave sidebar and leave index Approvals button without creating duplicate routes.
+- Approval filters completed for employee, employee code, department, designation, leave type, status, approval level, financial year, date range, and per-page values.
+- Approval table completed with employee photo, code, name, department, leave type, from/to dates, requested/payable days, current stage, applied date, status badge, view/approve/reject/revoke actions, and HR/Admin bulk approve/reject UI over existing row routes.
+- Leave detail page rebuilt with employee profile, department/designation/joining date, leave request fields, calculation snapshot, remaining balance, timeline, approval history, cancel, and admin revoke controls.
+- Employee leave list refined to show workflow statuses, timeline/detail access, pending edit, and workflow cancel instead of direct deletion.
+- Blade presentation now uses controller-prepared display fields for badges, photos, timeline items, audit rows, stage labels, permissions, and remaining balance; no duplicate approval business logic was added.
+- Verification commands passed: `optimize:clear`, `optimize`, `view:cache`, `route:list`, `about`, targeted PHP lints for the modified controller/service, and full app PHP lint sweep.
+
+## 10F8 HRMS Leave Notification & Reminder Engine - 2026-07-13
+- Notification engine completed with Laravel database notifications, a centralized `NotificationService`, normalized notification payloads, read/unread support, and role-aware notification access.
+- Leave workflow notifications upgraded for submitted, approved, rejected, cancelled, revoked, and next-approver lifecycle messages using existing leave workflow hooks and routes.
+- Notification bell added to the admin navbar with unread count, latest 10 notifications, read/unread indicators, and View All navigation without Blade-side queries.
+- Notification center completed with filters for type, read/unread status, date range, 10/25/50/100 pagination, notification details, Mark Read, and Mark All Read confirmation.
+- Reminder scheduler completed with `PendingApprovalReminderJob`, `LeaveStartReminderJob`, `LeaveEndReminderJob`, and `LowBalanceReminderJob` registered in Asia/Kolkata timezone.
+- Notification preferences added to Company Settings: Enable Notifications, Enable Leave Reminders, Enable Approval Reminders, and Enable Low Balance Alerts.
+- Dashboard widget completed with latest 5 recent notifications from service-prepared data.
+- Authorization completed: employees see their own notifications, Admin can view all notifications, and manager/HR/Admin receive workflow/reminder notifications through existing workflow and role data.
+- Smoke verification completed: notification center, company settings, and dashboard rendered HTTP 200; rollback-wrapped notification send/read smoke returned unread `1` and read `1`; scheduler list showed all four reminder jobs.
+- Verification commands passed: `migrate`, `optimize:clear`, `optimize`, `view:cache`, full `route:list`, `route:list --name=notifications`, `about`, targeted PHP lints, and full app PHP lint sweep.
+
+## 10F9 HRMS Leave Reports & Analytics - 2026-07-13
+- Leave reports module completed with a dedicated `LeaveReportService`, controller, DI binding, and HRMS routes under `hrms.leave-reports.*`.
+- Reports dashboard completed with server-prepared summary cards, Chart.js datasets, and widgets for Top 5 Employees Most Leave Taken, Lowest Leave Balance, Pending Approvals, and Upcoming Leave.
+- Report pages completed for Employee, Department, Leave Type, Balance, Liability, Monthly, Financial Year, Approval Performance, LWP, and Sandwich leave reports.
+- Reusable report Blade partials added for summary cards, filters, charts, and tables; Blade templates render only service-prepared data with no database queries or leave calculations.
+- Filters completed for financial year, month, employee, employee code, department, designation, leave type, status, approval stage, approver, from date, to date, and 10/25/50/100 pagination.
+- Employee drill-down completed with profile photo/default avatar, leave balances, leave history, approval history, attendance summary, holiday summary, sandwich count, and LWP count.
+- Authorization completed: employees receive 403, HR/Admin can view all reports, and reporting managers receive scoped report data; sidebar Leave Reports entry is visible for HR/Admin.
+- Export controls added as UI-only Excel/PDF buttons plus printable Bootstrap-compatible print action.
+- Smoke verification completed: all leave report routes and employee drill-down rendered HTTP 200 with an authenticated HR/Admin user; service payload generation passed for every report type.
+- Verification commands passed: `optimize:clear`, `optimize`, `view:cache`, full `route:list`, `about`, targeted PHP lints, and full app PHP lint sweep.
+
+## 10F10 HRMS Financial Year Closing - 2026-07-13
+- Financial Year dashboard completed with Current Financial Year, Status, Total Employees, Processed, Pending, Carry Forward Employees, Last Closed Date, and widget data prepared server-side.
+- Preview completed with dry-run rows for Employee, Department, CL Current, SL Current, EL Current, Carry Forward EL, New CL, New SL, New EL, and Status without database writes.
+- Carry Forward completed through existing leave policy allocation with Earned Leave-only carry-forward, `carry_forward_enabled`, and `carry_forward_limit` support.
+- Leave Reset completed: CL and SL carry-forward are forced to zero for the new financial year while new entitlements are allocated.
+- New Allocation completed by reusing the existing prorata allocation engine through `LeavePolicyService`.
+- History completed with financial year, closed by/on, processed count, carry-forward count, status, and detail action.
+- Audit Log completed with closed/reopened timeline, execution log, processed/skipped/inactive/carry-forward/reset/error counts, execution time, actor, and IP address.
+- Dry Run completed through `FinancialYearClosingService::preview()` and the Preview Closing UI.
+- Queue support completed with `CloseFinancialYearJob` for long-running closing execution.
+- Transaction support completed: closing runs inside a database transaction and rollback smoke verified no partial close remains on failure/test rollback.
+- Notifications completed using the existing notification service to notify HR/Admin after successful closing.
+- Browser-oriented verification completed via authenticated HTTP renders for dashboard, preview, history, and rollback-created detail page with no undefined variables.
+- Verification commands passed: `migrate`, `optimize:clear`, `optimize`, `view:cache`, full `route:list`, `about`, targeted PHP lints, full app PHP lint sweep, dry-run preview smoke, rollback-wrapped close/idempotency/reopen smoke, and detail render smoke.
+
+## 10F6B HRMS Leave Controller Presentation Fix - 2026-07-13
+- Restored `LeaveApplyController::prepareLeavePresentation()` for leave list, leave detail, leave history, and approval dashboard records.
+- Controller presentation mapping completed for employee photo/name/code/department/designation, leave type, status badge/color/label, date labels, duration labels, current stage, pending-with, approval audit items, timeline items, balance summary, sandwich summary, LWP summary, and action permissions.
+- Restored missing approval presentation helpers for approval summary counts and dashboard cards.
+- Blade presentation cleanup completed for leave list, approval list, and leave detail pages to use prepared labels/badges instead of local date/status formatting.
+- Runtime error resolved: `prepareLeavePresentation()` now exists and affected leave routes render successfully.
+- Browser-oriented verification completed via authenticated HTTP renders for leave list, approvals, and leave detail pages with no runtime errors.
+- Verification commands passed: `optimize:clear`, `optimize`, `view:cache`, full `route:list`, `about`, targeted controller lint, full app PHP lint sweep, and authenticated render smoke checks.
+
+## 10F6C HRMS Leave Approval Workflow Bugfix - 2026-07-13
+- Approval workflow bugfix completed for manager-stage dead ends when `manager` approval is configured but the employee has no reporting manager.
+- `LeaveApprovalService` now resolves approval levels per leave, skips unavailable manager stages, and falls back to HR so requests remain actionable.
+- New leave initialization now assigns HR as the first approval level when manager approval is configured but no manager exists.
+- Existing pending/legacy leave requests with missing manager data can now be approved by HR/Admin instead of getting stuck at manager approval.
+- Rollback smoke verified managerless `manager,hr` approval configuration approves successfully and initializes to `hr`.
+- Browser-oriented verification completed via authenticated HTTP renders for leave list, approvals, and leave detail pages with HTTP 200 responses.
+- Verification commands passed: `optimize:clear`, `optimize`, `view:cache`, full `route:list`, `about`, targeted service/controller lint, and full app PHP lint sweep.
+
+## 10F11 HRMS Leave Module Final Verification & Signoff - 2026-07-14
+- Complete Leave Module FNF completed for 10F1 through 10F10 plus bugfixes 10F6B and 10F6C.
+- End-to-end regression completed across leave apply/list/detail/edit/calendar, approval dashboard, notifications, attendance integration pages, reports, and financial year closing screens using authenticated HTTP renders.
+- Leave policy, balance, live calculation, prorata, snapshot, sandwich, LWP, approval workflow, manager fallback, notification, attendance, reports, and financial-year services were smoke verified through service-level and rollback-safe functional checks.
+- Attendance integration verified with rollback-approved leave: approved leave returned leave status and blocked check-in/check-out.
+- Notification engine verified at service level: notification center and navbar notification services render and return counts safely in the current empty-notification dataset.
+- Reports verified: dashboard and Employee, Department, Leave Type, Balance, Liability, Monthly, Financial Year, Approval, LWP, and Sandwich report routes rendered HTTP 200.
+- Financial Year closing verified: preview, transactional close, duplicate protection, and reopen passed in rollback-safe smoke tests.
+- Database verification completed: no duplicate leave balances and no orphan leave/balance user or leave type records detected; financial year archive table exists.
+- Documentation verification completed: 10F1 through 10F11 and bugfix markdown files are present and non-empty.
+- Browser-oriented compatibility and responsive UI verification completed through authenticated desktop-route render smoke for all primary module pages; no runtime, missing method, missing route, missing view, or undefined variable errors appeared in the smoke matrix.
+- Laravel verification commands passed: `migrate`, `optimize:clear`, `optimize`, `config:cache`, `route:cache`, `view:cache`, `event:cache`, full `route:list`, `schedule:list`, `about`, and full app PHP lint sweep.
+- Leave module signed off for Payroll integration; next phase may proceed to `10G1_hrms_payroll_master_and_salary_structure.md`.
+
+## 10E8 HRMS Employee Reporting Hierarchy
+- Reporting hierarchy implemented using `user_details.reporting_manager_id` as the single source of truth for employee manager assignment.
+- Reporting Manager assignment completed on Employee Create/Edit with active-manager dropdown, self-manager validation, and circular hierarchy prevention.
+- Employee profile updated with Reporting Manager display and manager profile link.
+- Employee list updated with Reporting Manager column, manager filter, status filter, search support, and sorting options.
+- Dashboard widget completed for HR/Admin users: Employees Without Reporting Manager links to the filtered employee list.
+- Leave workflow integrated by reusing the existing `reporting_manager_id` field already consumed by the leave approval workflow.
+- Notifications completed for employee and new manager after reporting manager assignment changes.
+- Audit log completed via `reporting_manager_audits` with employee, old manager, new manager, actor, timestamp, and IP address.
+- Reporting Hierarchy Report completed with filters, export UI placeholders, print action, and simple organization preview.
+- Browser verification prepared through cached Blade views, route registration, and transactional service smoke checks for assignment/self/circular scenarios.
+- Laravel verification commands passed: migrate, optimize:clear, optimize, view:cache, route:list, about, and full app PHP lint.

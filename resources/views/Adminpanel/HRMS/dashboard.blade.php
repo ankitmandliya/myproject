@@ -18,6 +18,9 @@
         $attendanceChart = $dashboard['attendance_chart'] ?? [];
         $leaveChart = $dashboard['leave_chart'] ?? [];
         $salaryChart = $dashboard['salary_chart'] ?? [];
+        $leaveBalances = $dashboard['leave_balances'] ?? [];
+        $recentNotifications = $dashboard['recent_notifications'] ?? [];
+        $canManageHierarchy = (bool) ($dashboard['can_manage_hierarchy'] ?? false);
     @endphp
 
     <div class="container">
@@ -114,6 +117,20 @@
                         </div>
                     </div>
                 </div>
+                @if($canManageHierarchy)
+                    <div class="col-sm-6 col-md-3">
+                        <a href="{{ route('hrms.users.index', ['reporting_manager_id' => 'none']) }}" class="text-decoration-none">
+                            <div class="card card-stats card-round">
+                                <div class="card-body">
+                                    <div class="row align-items-center">
+                                        <div class="col-icon"><div class="icon-big text-center icon-danger bubble-shadow-small"><i class="fas fa-user-tag"></i></div></div>
+                                        <div class="col col-stats ms-3 ms-sm-0"><div class="numbers"><p class="card-category">Without Reporting Manager</p><h4 class="card-title">{{ $employees['employees_without_reporting_manager'] ?? 0 }}</h4></div></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </a>
+                    </div>
+                @endif
             </div>
 
             <div class="row">
@@ -126,7 +143,11 @@
                             <div class="d-flex justify-content-between mb-2"><span>Present Today</span><strong>{{ $attendance['present'] ?? 0 }}</strong></div>
                             <div class="d-flex justify-content-between mb-2"><span>Absent Today</span><strong>{{ $attendance['absent'] ?? 0 }}</strong></div>
                             <div class="d-flex justify-content-between mb-2"><span>Late Today</span><strong>{{ $attendance['late'] ?? 0 }}</strong></div>
-                            <div class="d-flex justify-content-between"><span>Half Day Today</span><strong>{{ $attendance['half_day'] ?? 0 }}</strong></div>
+                            <div class="d-flex justify-content-between mb-2"><span>Half Day Today</span><strong>{{ $attendance['half_day'] ?? 0 }}</strong></div>
+                            <div class="d-flex justify-content-between mb-2"><span>Leave Today</span><strong>{{ $attendance['leave'] ?? 0 }}</strong></div>
+                            <div class="d-flex justify-content-between mb-2"><span>LWP Today</span><strong>{{ $attendance['lwp'] ?? 0 }}</strong></div>
+                            <div class="d-flex justify-content-between mb-2"><span>Holiday</span><strong>{{ $attendance['holiday'] ?? 0 }}</strong></div>
+                            <div class="d-flex justify-content-between"><span>Weekly Off</span><strong>{{ $attendance['weekly_off'] ?? 0 }}</strong></div>
                         </div>
                     </div>
                 </div>
@@ -157,6 +178,54 @@
             </div>
 
             <div class="row">
+                <div class="col-md-12">
+                    <div class="card card-round">
+                        <div class="card-header"><div class="card-title">Leave Balance</div></div>
+                        <div class="card-body">
+                            <div class="row">
+                                @forelse ($leaveBalances as $balance)
+                                    <div class="col-sm-6 col-lg-4 mb-3">
+                                        <div class="border rounded p-3 h-100">
+                                            <div class="fw-bold mb-2">{{ $balance['leave_type'] ?? '-' }}</div>
+                                            <div class="d-flex justify-content-between mb-1"><span>Allocated</span><strong>{{ $balance['allocated'] ?? 0 }}</strong></div>
+                                            <div class="d-flex justify-content-between mb-1"><span>Used</span><strong>{{ $balance['used'] ?? 0 }}</strong></div>
+                                            <div class="d-flex justify-content-between"><span>Remaining</span><strong>{{ $balance['remaining'] ?? 0 }}</strong></div>
+                                        </div>
+                                    </div>
+                                @empty
+                                    <div class="col-12"><p class="text-muted mb-0">No Data Available</p></div>
+                                @endforelse
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-12">
+                    <div class="card card-round">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <div class="card-title mb-0">Recent Notifications</div>
+                            <a href="{{ route('hrms.notifications.index') }}" class="btn btn-sm btn-light">View All</a>
+                        </div>
+                        <div class="card-body">
+                            @forelse($recentNotifications as $item)
+                                <a href="{{ route('hrms.notifications.show', $item['id']) }}" class="d-flex align-items-start gap-3 text-decoration-none text-reset border-bottom pb-3 mb-3">
+                                    <span class="badge badge-{{ $item['color'] }} p-2"><i class="bi {{ $item['icon'] }}"></i></span>
+                                    <span class="flex-fill">
+                                        <span class="d-flex justify-content-between gap-3"><strong>{{ $item['title'] }}</strong><small class="text-muted">{{ $item['time_ago'] }}</small></span>
+                                        <span class="d-block text-muted text-break">{{ $item['message'] }}</span>
+                                    </span>
+                                    @unless($item['is_read'])<span class="badge badge-primary">Unread</span>@endunless
+                                </a>
+                            @empty
+                                <div class="text-muted">No Notifications Found</div>
+                            @endforelse
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="row">
                 <div class="col-md-4">
                     <div class="card card-round">
                         <div class="card-header">
@@ -178,6 +247,7 @@
                         <div class="card-body">
                             <div class="row">
                                 <div class="col-sm-6 col-md-4 mb-3"><a href="{{ route('hrms.users.index') }}" class="btn btn-primary btn-round w-100"><i class="fas fa-users me-1"></i> Employees</a></div>
+                                @if($canManageHierarchy)<div class="col-sm-6 col-md-4 mb-3"><a href="{{ route('hrms.reporting-hierarchy.index') }}" class="btn btn-primary btn-round w-100"><i class="fas fa-sitemap me-1"></i> Reporting Hierarchy</a></div>@endif
                                 <div class="col-sm-6 col-md-4 mb-3"><a href="{{ route('hrms.attendance.index') }}" class="btn btn-primary btn-round w-100"><i class="fas fa-calendar-check me-1"></i> Attendance</a></div>
                                 <div class="col-sm-6 col-md-4 mb-3"><a href="{{ route('hrms.leave-apply.index') }}" class="btn btn-primary btn-round w-100"><i class="fas fa-calendar-minus me-1"></i> Leave Apply</a></div>
                                 <div class="col-sm-6 col-md-4 mb-3"><a href="{{ route('hrms.salary.index') }}" class="btn btn-primary btn-round w-100"><i class="fas fa-money-check-alt me-1"></i> Payroll</a></div>
